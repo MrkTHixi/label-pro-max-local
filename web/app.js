@@ -1,18 +1,19 @@
 // web/app.js — LabelPro Local frontend (vanilla JS, ไม่ต้อง build)
 // โฟลว์หลัก: ค้นหา (ชื่อสถานที่) → ดับเบิลคลิกเปิด popup ตัวเลือกการพิมพ์
 // → สั่งพิมพ์ → popup สำเร็จ (กลางจอ + คำอวยพรตามวันจริง)
+import { previewDocument } from './label-template.js';
 const $ = (id) => document.getElementById(id);
+async function request(path, method = 'GET', body) {
+  try {
+    const response = await fetch(path, { method, ...(body !== undefined ? {headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {}) });
+    return await response.json();
+  } catch { return {ok:false,message:'ติดต่อระบบไม่ได้ กรุณาเปิด start-labelpro.vbs แล้วลองใหม่'}; }
+}
 const api = {
-  async get(p) { const r = await fetch(p); return r.json(); },
-  async post(p, body) {
-    const r = await fetch(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
-    return r.json();
-  },
-  async put(p, body) {
-    const r = await fetch(p, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
-    return r.json();
-  },
-  async del(p) { const r = await fetch(p, { method: 'DELETE' }); return r.json(); },
+  get: (p) => request(p),
+  post: (p, body = {}) => request(p, 'POST', body),
+  put: (p, body = {}) => request(p, 'PUT', body),
+  del: (p) => request(p, 'DELETE'),
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function toast(msg, isErr = false) {
@@ -42,6 +43,7 @@ document.querySelectorAll('.top-actions .btn').forEach((b) => {
 // ---------- พิมพ์ฉลาก: ค้นหา ----------
 let customersCache = [];   // ผลค้นหาล่าสุด
 let selectedCustomer = null;
+let senderPreview = {}, dataGeneration = 0, searchSequence = 0, listSequence = 0;
 
 let searchTimer;
 $('q').addEventListener('input', (e) => {
@@ -50,7 +52,9 @@ $('q').addEventListener('input', (e) => {
 });
 
 async function searchCustomers(q) {
+  const sequence = ++searchSequence, generation = dataGeneration;
   const d = await api.get('/api/customers?q=' + encodeURIComponent(q || ''));
+  if (sequence !== searchSequence || generation !== dataGeneration) return;
   const box = $('results');
   if (!d.ok) { box.innerHTML = '<div class="empty">โหลดไม่สำเร็จ</div>'; return; }
   customersCache = d.customers;
@@ -85,21 +89,14 @@ function selectCustomer(c) {
 }
 
 function updatePreview(c) {
-  $('pv-place').textContent = c ? (c.place_name || '—') : '— เลือกลูกค้า —';
-  $('pv-name').textContent = c ? (c.attention_name || '') : '';
-  $('pv-addr').textContent = c ? (c.address || '') : '';
-  $('pv-contact').textContent = c && c.contact ? 'ติดต่อ: ' + c.contact : '';
+  $('labelPreview').srcdoc = previewDocument({ ...(c || {}), message: msg }, senderPreview);
 }
 
 async function loadSenderPreview() {
   const d = await api.get('/api/sender');
   if (!d.ok) return;
-  const s = d.sender;
-  if (s && s.sender_name) {
-    $('pv-sender').innerHTML =
-      `<b>ผู้ส่ง: ${esc(s.sender_name)}</b><br>เบอร์โทร ${esc(s.sender_phone || '-')}<br>` +
-      `${esc(s.sender_address || '')}${s.sender_address_extra ? '<br>' + esc(s.sender_address_extra) : ''}`;
-  }
+  senderPreview = d.sender || {};
+  updatePreview(selectedCustomer);
 }
 
 // ---------- POPUP: ตัวเลือกการพิมพ์ ----------
@@ -118,6 +115,7 @@ function openPrintModal(c) {
   $('m-sub').innerHTML = `📍 <b>${esc(c.place_name)}</b> · ${esc(c.attention_name || '')}`;
   document.querySelectorAll('.msgbtn').forEach((x) => x.classList.toggle('sel', x.dataset.msg === 'มีเอกสารค่ะ'));
   msg = 'มีเอกสารค่ะ';
+  updatePreview(c);
   qty = 1; renderQty();
   $('printModal').classList.add('open');
 }
@@ -125,6 +123,7 @@ function closePrintModal() { $('printModal').classList.remove('open'); }
 document.querySelectorAll('.msgbtn').forEach((b) => {
   b.addEventListener('click', () => {
     msg = b.dataset.msg;
+    updatePreview(selectedCustomer);
     document.querySelectorAll('.msgbtn').forEach((x) => x.classList.remove('sel'));
     b.classList.add('sel');
   });
@@ -140,16 +139,20 @@ $('printModal').addEventListener('click', (e) => { if (e.target.id === 'printMod
 
 // ---------- สั่งพิมพ์ → POPUP สำเร็จ ----------
 $('confirmBtn').addEventListener('click', async () => {
+  if ($('confirmBtn').disabled) return;
   if (!modalCustomer) { toast('❌ กรุณาเลือกลูกค้าก่อน', true); return; }
+  const customer = modalCustomer, message = msg, copies = qty;
+  $('confirmBtn').disabled = true;
   const d = await api.post('/api/print', {
-    customer_id: modalCustomer.id,
-    message: msg,
-    copies: qty,
+    customer_id: customer.id,
+    message,
+    copies,
     printed_by: $('m_by').value.trim(),
   });
+  $('confirmBtn').disabled = false;
   closePrintModal();
   if (!d.ok) { toast('❌ ' + (d.message || 'สั่งพิมพ์ไม่สำเร็จ'), true); return; }
-  showSuccess(modalCustomer.place_name, msg, qty);
+  showSuccess(customer.place_name, message, copies);
   loadQueueBadge();
 });
 
@@ -194,7 +197,7 @@ document.addEventListener('keydown', (e) => {
 const STATUS = {
   queued: ['⏳ รอพิมพ์', 'p-wait'],
   printing: ['🖨️ กำลังพิมพ์', 'p-run'],
-  done: ['✅ สำเร็จ', 'p-done'],
+  done: ['✅ ส่งงานพิมพ์แล้ว', 'p-done'],
   failed: ['❌ ล้มเหลว', 'p-fail'],
   cancelled: ['🚫 ยกเลิกแล้ว', 'p-cancel'],
 };
@@ -202,18 +205,18 @@ async function loadQueue() {
   const d = await api.get('/api/queue');
   const tb = $('queueBody');
   if (!d.ok) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted)">โหลดไม่สำเร็จ</td></tr>'; return; }
-  const today = new Date().toISOString().slice(0, 10);
-  $('stWait').textContent = d.jobs.filter((j) => j.status === 'queued' || j.status === 'printing').length;
-  $('stDone').textContent = d.jobs.filter((j) => j.status === 'done' && (j.printed_at || '').slice(0, 10) === today).length;
-  $('stFail').textContent = d.jobs.filter((j) => j.status === 'failed').length;
+  $('stWait').textContent = d.stats.waiting;
+  $('stDone').textContent = d.stats.done_today;
+  $('stFail').textContent = d.stats.failed;
   if (!d.jobs.length) {
     tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted)">ยังไม่มีงานพิมพ์</td></tr>';
     return;
   }
   tb.innerHTML = d.jobs.map((j) => {
     const [label, cls] = STATUS[j.status] || [j.status, 'p-wait'];
-    const time = new Date(j.created_at).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+    const time = new Date(j.created_at).toLocaleString('th-TH', { timeZone:'Asia/Bangkok', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
     const acts = [];
+    acts.push(`<a class="mini" href="/api/queue/${j.id}/pdf" download title="ดาวน์โหลดไฟล์ฉลากเมื่อต้องการ">PDF</a>`);
     if (j.status === 'queued') acts.push(`<button class="mini" data-act="cancel" data-id="${j.id}">ยกเลิก</button>`);
     if (j.status === 'done' || j.status === 'failed' || j.status === 'cancelled') acts.push(`<button class="mini" data-act="reprint" data-id="${j.id}">พิมพ์ซ้ำ</button>`);
     return `<tr>
@@ -249,7 +252,7 @@ async function loadQueue() {
 async function loadQueueBadge() {
   const d = await api.get('/api/queue');
   if (!d.ok) return;
-  const n = d.jobs.filter((j) => j.status === 'queued' || j.status === 'printing').length;
+  const n = d.stats.waiting;
   const b = $('queueBadge');
   b.textContent = n;
   b.classList.toggle('hidden', n === 0);
@@ -261,10 +264,13 @@ setInterval(() => {
 
 // ---------- ลูกค้า ----------
 async function loadCustomers() {
+  const sequence = ++listSequence, generation = dataGeneration;
   const q = $('custQ').value.trim();
   const d = await api.get('/api/customers?q=' + encodeURIComponent(q));
+  if (sequence !== listSequence || generation !== dataGeneration) return;
   const tb = $('custBody');
   if (!d.ok) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center">โหลดไม่สำเร็จ</td></tr>'; return; }
+  $('customerCount').textContent = `ลูกค้าที่ใช้งานทั้งหมด ${d.total} ราย · แสดง ${d.customers.length} ราย`;
   if (!d.customers.length) {
     tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted)">ยังไม่มีลูกค้า — กด “➕ เพิ่มลูกค้าใหม่” หรือ “📥 นำเข้า Excel”</td></tr>';
     return;
@@ -287,7 +293,7 @@ async function loadCustomers() {
     if (b.dataset.act === 'del') b.addEventListener('click', async () => {
       if (!confirm(`ปิดใช้งาน “${c.place_name}”? (ข้อมูลไม่ถูกลบถาวร)`)) return;
       const r = await api.del('/api/customers/' + id);
-      if (r.ok) { toast('ปิดใช้งานแล้ว'); loadCustomers(); }
+      if (r.ok) { toast('ปิดใช้งานแล้ว'); if(selectedCustomer?.id===c.id){ selectedCustomer=null; modalCustomer=null; updatePreview(null); } loadCustomers(); searchCustomers($('q').value); }
       else toast('❌ ' + r.message, true);
     });
   });
@@ -348,11 +354,17 @@ $('importFile').addEventListener('change', async (e) => {
 
 // ---------- ตั้งค่า ----------
 async function loadSettings() {
+  loadRuntimeStatus();
   const d = await api.get('/api/settings');
   if (!d.ok) return;
   $('set_branch').value = d.settings.branch_name || '';
   $('set_backup_url').value = d.settings.backup_repo_url || '';
   $('set_printer').value = d.settings.printer_name || '';
+  const printers=await api.get('/api/printers');
+  if(printers.ok){
+    $('printerNames').innerHTML=printers.printers.map((p)=>`<option value="${esc(p.name)}">${p.default?'เครื่องพิมพ์เริ่มต้น':''}${p.offline?' · offline':''}</option>`).join('');
+    $('printerHint').textContent=printers.printers.length?'เลือกชื่อจากรายการของ Windows เพื่อป้องกันพิมพ์ผิดเครื่อง':'ยังไม่พบเครื่องพิมพ์ใน Windows';
+  }else $('printerHint').textContent=printers.message;
   const s = await api.get('/api/sender');
   if (s.ok) {
     $('s_name').value = s.sender.sender_name || '';
@@ -366,7 +378,7 @@ async function loadSettings() {
     box.className = 'status-box muted';
     box.textContent = 'ยังไม่เคยสำรองข้อมูล';
   } else {
-    const t = new Date(lb.started_at).toLocaleString('th-TH');
+    const t = new Date(lb.started_at).toLocaleString('th-TH', {timeZone:'Asia/Bangkok'});
     box.className = 'status-box ' + (lb.ok ? 'ok' : 'fail');
     box.textContent = (lb.ok ? '✅ สำรองล่าสุด: ' : '❌ สำรองล้มเหลว: ') + t + ' — ' + (lb.message || '');
   }
@@ -394,9 +406,73 @@ $('backupNow').addEventListener('click', async () => {
   setTimeout(loadSettings, 8000);
 });
 $('updateNow').addEventListener('click', async () => {
-  if (!confirm('อัปเดตแอปจาก GitHub? (ต้อง restart server/worker หลังอัปเดต)')) return;
+  if (!confirm('อัปเดตแอปจาก GitHub? ระบบจะเริ่มใหม่เมื่ออัปเดตสำเร็จ กรุณาจัดการคิวงานก่อน')) return;
   const r = await api.post('/api/update');
   toast(r.ok ? '⬇️ ' + r.note : '❌ สั่งอัปเดตไม่สำเร็จ', !r.ok);
+  if (r.ok) pollUpdate();
+});
+
+async function loadRuntimeStatus() {
+  const d = await api.get('/api/health');
+  $('runtimeStatus').textContent = d.ok ? (d.worker.ready ? (d.worker.driver==='mock' ? '🧪 โหมดทดลอง ไม่มีการพิมพ์จริง' : '✅ ระบบพิมพ์พร้อม') : '⚠️ ตัวพิมพ์ยังไม่พร้อม กรุณาเปิด start-labelpro.vbs') : d.message;
+  $('restartRuntime').disabled = !d.managed; $('stopRuntime').disabled = !d.managed;
+}
+async function pollUpdate() {
+  $('updateStatus').classList.remove('hidden');
+  const d = await api.get('/api/update');
+  $('updateStatus').textContent = d.message || 'ระบบกำลังเริ่มใหม่ กรุณารอสักครู่แล้วรีเฟรช';
+  if (d.running) setTimeout(pollUpdate,2000);
+}
+$('restartRuntime').addEventListener('click', async () => {
+  const d=await api.post('/api/runtime/restart'); toast(d.ok?'กำลังเริ่มระบบใหม่ กรุณารอสักครู่แล้วรีเฟรช':d.message,!d.ok);
+});
+$('stopRuntime').addEventListener('click', async () => {
+  if(!confirm('ปิดระบบ LabelPro? งานที่กำลังส่งพิมพ์จะทำให้เสร็จก่อนปิด')) return;
+  const d=await api.post('/api/runtime/stop'); toast(d.ok?'กำลังปิดระบบ เปิดอีกครั้งด้วย start-labelpro.vbs':d.message,!d.ok);
+});
+
+let clearInfo = null, clearBusy = false, clearPreviousFocus;
+function closeClearModal() {
+  if(clearBusy) return;
+  $('clearCustomersModal').classList.remove('open'); clearInfo=null; clearPreviousFocus?.focus();
+}
+function updateClearButton() { $('clearConfirm').disabled = clearBusy || !clearInfo?.total || clearInfo.pending>0 || $('clearPhrase').value.trim()!=='ล้างข้อมูล'; }
+$('clearCustomersBtn').addEventListener('click', async () => {
+  clearPreviousFocus=document.activeElement; clearInfo=null;
+  $('clearPhrase').value=''; $('clearError').textContent=''; $('clearSummary').textContent='กำลังตรวจจำนวนลูกค้าทั้งหมด…';
+  $('clearCustomersModal').classList.add('open'); updateClearButton();
+  const info=await api.get('/api/customers/clear-info');
+  if(!$('clearCustomersModal').classList.contains('open')) return;
+  if(!info.ok){$('clearError').textContent=info.message;return;}
+  clearInfo=info;
+  $('clearSummary').textContent=`จะลบลูกค้าทั้งหมด ${info.total} ราย (ใช้งาน ${info.active} ราย · ปิดใช้งาน ${info.total-info.active} ราย)`;
+  if(info.pending) $('clearError').textContent=`มีงานรอหรือกำลังพิมพ์ ${info.pending} งาน กรุณาจัดการคิวก่อนล้าง`;
+  updateClearButton(); $('clearPhrase').focus();
+});
+$('clearPhrase').addEventListener('input',updateClearButton);
+['clearCancel','clearX'].forEach((id)=>$(id).addEventListener('click',closeClearModal));
+$('clearCustomersModal').addEventListener('click',(e)=>{if(e.target.id==='clearCustomersModal')closeClearModal();});
+document.addEventListener('keydown',(e)=>{
+  if(!$('clearCustomersModal').classList.contains('open'))return;
+  if(e.key==='Escape')closeClearModal();
+  if(e.key==='Tab'){
+    const inputs=[...$('clearCustomersModal').querySelectorAll('button:not(:disabled),input:not(:disabled)')],first=inputs[0],last=inputs.at(-1);
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  }
+});
+$('clearConfirm').addEventListener('click',async()=>{
+  if($('clearConfirm').disabled||clearBusy)return;
+  clearBusy=true; updateClearButton(); $('clearPhrase').disabled=true; $('clearCancel').disabled=true; $('clearX').disabled=true;
+  $('clearConfirm').textContent='กำลังสำรองและล้างข้อมูล…';
+  const result=await api.post('/api/customers/clear',{token:clearInfo.token,confirmation:$('clearPhrase').value.trim()});
+  clearBusy=false; $('clearPhrase').disabled=false; $('clearCancel').disabled=false; $('clearX').disabled=false; $('clearConfirm').textContent='ยืนยันล้างลูกค้าทั้งหมด';
+  if(!result.ok){$('clearError').textContent=result.message+' กรุณาปิดคำเตือนแล้วเปิดใหม่';clearInfo=null;updateClearButton();return;}
+  dataGeneration++; clearTimeout(searchTimer); clearTimeout(custTimer);
+  selectedCustomer=null; modalCustomer=null; customersCache=[]; $('q').value=''; $('custQ').value='';
+  closePrintModal(); closeCustModal(); closeClearModal(); updatePreview(null);
+  await Promise.all([loadCustomers(),searchCustomers('')]);
+  toast(`ล้างลูกค้า ${result.deleted} รายแล้ว สำรองไว้ที่ backups/${result.backup}`);
 });
 
 // ---------- branch chip ----------

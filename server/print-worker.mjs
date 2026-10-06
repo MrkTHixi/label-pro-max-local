@@ -1,69 +1,53 @@
-// server/print-worker.mjs — Print Worker (process แยกจาก web server)
-// รัน: npm run worker
-//
-// หน้าที่: ทุก 3 วินาที ดึงงาน status='queued' มาทีละ 1 งานแบบ atomic
-// (UPDATE ... WHERE status='queued' → กัน worker ซ้อนกันดึงงานเดียวกัน)
-// แล้ว "พิมพ์" ผ่าน PrinterDriver ที่เลือก แล้ว mark done/failed
-// → UI ไม่เคยรอเครื่องพิมพ์เลย กดพิมพ์ปุ๊บตอบกลับปั๊บ
-//
-// เลือก driver ผ่าน env PRINT_DRIVER:
-//   mock     → MockDriver (เขียนไฟล์ .txt ลง printed/ — dev/test)
-//   windows  → WindowsPdfDriver (เรนเดอร์ PDF 100×150mm → ส่งเข้า Windows spooler)
-//   (ไม่ตั้ง) → windows บน win32, mock บน OS อื่น
-// ชื่อเครื่องพิมพ์: env PRINTER_NAME → settings.printer_name (ตั้งในหน้าเว็บ)
-import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { db, ROOT, now } from './db.mjs';
-import { makeDriver, resolveDriverName } from './printer-drivers.mjs';
-
-const log = (msg) => {
-  const line = `[${new Date().toISOString()}] ${msg}\n`;
-  process.stdout.write(line);
-  try { appendFileSync(join(ROOT, 'data', 'worker.log'), line); } catch { /* ignore */ }
-};
-
-// --- claim งานแบบ atomic: กัน worker 2 ตัวดึงงานเดียวกัน ---
-function claimJob() {
-  // หา id งานที่ queued เก่าสุดก่อน แล้ว UPDATE แบบมีเงื่อนไข status='queued'
-  const row = db.prepare(
-    "SELECT id FROM print_jobs WHERE status = 'queued' ORDER BY id ASC LIMIT 1"
-  ).get();
-  if (!row) return null;
-  const r = db.prepare(
-    "UPDATE print_jobs SET status = 'printing' WHERE id = ? AND status = 'queued'"
-  ).run(row.id);
-  if (r.changes === 0) return null; // มี worker ตัวอื่น claim ไปก่อน
-  return db.prepare('SELECT * FROM print_jobs WHERE id = ?').get(row.id);
-}
-
-async function tick(driver) {
+import { db, DATA_DIR, DB_PATH, now } from './db.mjs';
+import { makeDriver, resolveDriverName, cleanupStalePrintFiles } from './printer-drivers.mjs';
+import { closeLabelBrowser, getLabelBrowser } from './label-pdf.mjs';
+import { acquireLock } from './process-lock.mjs';
+import { appendLog } from './log.mjs';
+const release = acquireLock(DB_PATH + '.worker.lock');
+process.on('exit', release);
+const log = (msg) => { const line = `[${now()}] ${msg}\n`; process.stdout.write(line); appendLog(join(DATA_DIR, 'worker.log'), line); };
+const driverName = resolveDriverName(), driver = makeDriver();
+await cleanupStalePrintFiles();
+if (driverName === 'windows') await getLabelBrowser();
+db.prepare("UPDATE print_jobs SET status='failed',error=? WHERE status='printing'").run('ระบบหยุดระหว่างส่งพิมพ์ กรุณาตรวจฉลากก่อนเลือกพิมพ์ซ้ำ');
+const heartbeat = () => db.prepare('INSERT INTO worker_state(id,pid,heartbeat,driver) VALUES(1,?,?,?) ON CONFLICT(id) DO UPDATE SET pid=excluded.pid,heartbeat=excluded.heartbeat,driver=excluded.driver').run(process.pid, now(), driverName);
+heartbeat();
+const pulse = setInterval(heartbeat, 2000);
+let stopping = false, busy = false, timer;
+export async function tick() {
+  if (busy || stopping) return;
+  busy = true;
   try {
-    const job = claimJob();
-    if (!job) return;
-    log(`printing job #${job.id} (${job.copies} copies)…`);
-    try {
-      const sender = db.prepare('SELECT * FROM sender_profile WHERE id = 1').get();
-      await driver.print(job, sender);
-      db.prepare("UPDATE print_jobs SET status = 'done', printed_at = ? WHERE id = ?")
-        .run(now(), job.id);
-      log(`job #${job.id} done`);
-    } catch (e) {
-      db.prepare("UPDATE print_jobs SET status = 'failed', error = ? WHERE id = ?")
-        .run(String(e?.message || e), job.id);
-      log(`job #${job.id} FAILED: ${e?.message || e}`);
+    const job = db.transaction(() => {
+      if (db.prepare("SELECT 1 FROM print_jobs WHERE status='printing'").get()) return null;
+      const row = db.prepare("SELECT * FROM print_jobs WHERE status='queued' ORDER BY id LIMIT 1").get();
+      if (row) db.prepare("UPDATE print_jobs SET status='printing' WHERE id=?").run(row.id);
+      return row;
+    }).immediate();
+    if (job) {
+      log(`printing job #${job.id} (${job.copies} copies)`);
+      try {
+        await driver.print(job);
+        db.prepare("UPDATE print_jobs SET status='done',printed_at=?,error=NULL WHERE id=?").run(now(), job.id);
+        log(`job #${job.id} sent (driver=${driverName})`);
+      } catch (error) {
+        db.prepare("UPDATE print_jobs SET status='failed',error=? WHERE id=?").run(String(error.message), job.id);
+        log(`job #${job.id} FAILED: ${error.message}`);
+      }
     }
-  } catch (e) {
-    log(`tick error: ${e?.message || e}`);
-  }
+  } catch (error) { log('worker error: ' + error.message); }
+  finally { busy = false; if (!stopping) timer = setTimeout(tick, Number(process.env.LABELPRO_POLL_MS || 1000)); }
 }
-
-const driverName = resolveDriverName();
-const driver = makeDriver();
-log(`print worker started (driver=${driverName}, platform=${process.platform}) — polling every 3s`);
-if (driverName === 'windows' && !((process.env.PRINTER_NAME || '').trim())) {
-  log('หมายเหตุ: จะใช้ชื่อเครื่องพิมพ์จากหน้า ตั้งค่า (settings.printer_name)');
+async function stop() {
+  if (stopping) return;
+  stopping = true; clearTimeout(timer);
+  while (busy) await new Promise((resolve) => setTimeout(resolve, 100));
+  clearInterval(pulse); db.prepare('DELETE FROM worker_state WHERE pid=?').run(process.pid);
+  await closeLabelBrowser(); db.close(); release(); process.exit(0);
 }
-setInterval(() => tick(driver), 3000);
-tick(driver); // รันทันทีรอบแรก
-
-process.on('SIGINT', () => { log('worker stopped'); process.exit(0); });
+process.on('SIGINT', stop); process.on('SIGTERM', stop);
+process.on('message', (msg) => { if (msg?.type === 'stop') stop(); });
+log(`print worker started (driver=${driverName})`);
+process.send?.({ type: 'ready' });
+tick();

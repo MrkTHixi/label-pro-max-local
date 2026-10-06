@@ -52,19 +52,7 @@
 
     <div class="preview-wrap">
       <div class="preview-cap">👁️ ตัวอย่างฉลากจริง 100 × 150 มม.</div>
-      <div class="labelpaper"><div class="inner">
-        <div class="lp-head" id="pv-msg-top">**** มีเอกสารค่ะ ****</div>
-        <div class="lp-sender" id="pv-sender">
-          <b>ผู้ส่ง: —</b><br>
-          <span class="muted">ตั้งค่าข้อมูลผู้ส่งในหน้า ⚙️ ตั้งค่า</span>
-        </div>
-        <div class="lp-div"></div>
-        <div class="lp-recv-label">ผู้รับ</div>
-        <div class="lp-place" id="pv-place">— เลือกลูกค้า —</div>
-        <div class="lp-name" id="pv-name"></div>
-        <div class="lp-addr"><span id="pv-addr"></span><br><br><span id="pv-contact"></span></div>
-        <div class="lp-foot" id="pv-msg-bot">**** มีเอกสารค่ะ ****</div>
-      </div></div>
+      <div class="label-preview"><iframe id="labelPreview" title="ตัวอย่างฉลากที่ใช้เทมเพลตเดียวกับไฟล์พิมพ์"></iframe></div>
       <div class="edit-hint">บล็อกผู้รับ: <b>ชื่อสถานที่</b> ตัวใหญ่ → กรุณาส่ง → ที่อยู่ → ติดต่อ</div>
     </div>
   </div>
@@ -74,7 +62,7 @@
 <section class="screen" id="view-queue">
   <div class="stat-chips">
     <div class="chip"><b style="color:var(--amber)" id="stWait">0</b><span>⏳ รอพิมพ์</span></div>
-    <div class="chip"><b style="color:var(--green)" id="stDone">0</b><span>✅ สำเร็จวันนี้</span></div>
+    <div class="chip"><b style="color:var(--green)" id="stDone">0</b><span>✅ ส่งพิมพ์วันนี้</span></div>
     <div class="chip"><b style="color:var(--red)" id="stFail">0</b><span>❌ ล้มเหลว</span></div>
   </div>
   <table>
@@ -89,8 +77,10 @@
     <input id="custQ" placeholder="🔍 ค้นหาด้วยชื่อสถานที่ / กรุณาส่ง / ติดต่อ...">
     <button class="btn btn-primary" id="addCustomerBtn">➕ เพิ่มลูกค้าใหม่</button>
     <button class="btn btn-outline" id="importBtn">📥 นำเข้า Excel</button>
+    <button class="btn btn-danger" id="clearCustomersBtn">🗑️ ล้างข้อมูลลูกค้าทั้งหมด</button>
     <input type="file" id="importFile" accept=".xlsx,.xls" class="hidden">
   </div>
+  <div class="foot-note" id="customerCount"></div>
   <table>
     <thead><tr><th>ชื่อสถานที่</th><th>กรุณาส่ง</th><th>ที่อยู่</th><th>ติดต่อ</th><th></th></tr></thead>
     <tbody id="custBody"></tbody>
@@ -114,8 +104,9 @@
       <h2>🏷️ สาขา & สำรองข้อมูล</h2>
       <div class="field"><label>ชื่อสาขา</label><input id="set_branch" placeholder="เช่น พัทยากลาง"></div>
       <div class="field"><label>ชื่อเครื่องพิมพ์ (Windows)</label>
-        <input id="set_printer" placeholder="เช่น Grozziie TP518">
-        <div class="sub" style="margin:4px 0 0">คัดลอกชื่อให้ตรงกับใน Control Panel → Devices and Printers เป๊ะ ๆ (worker จะใช้ชื่อนี้สั่งพิมพ์)</div></div>
+        <input id="set_printer" list="printerNames" placeholder="เลือกชื่อเครื่องพิมพ์ที่ติดตั้งใน Windows">
+        <datalist id="printerNames"></datalist>
+        <div class="sub" id="printerHint" style="margin:4px 0 0">เลือกชื่อให้ตรงกับเครื่องพิมพ์ที่ติดตั้งใน Windows</div></div>
       <div class="field"><label>Git repo สำหรับ backup (ว่างได้ = เก็บในเครื่องอย่างเดียว)</label>
         <input id="set_backup_url" placeholder="https://github.com/ORG/labelpro-backup-pattaya.git"></div>
       <div class="sub" style="margin-top:2px">💾 สำรองข้อมูลลง git <b>อัตโนมัติเมื่อเพิ่มลูกค้าใหม่</b> หรือกดปุ่มด้านล่าง — ไม่สำรองตามเวลา</div>
@@ -126,6 +117,13 @@
         <button class="btn btn-outline" id="updateNow">⬇️ อัปเดตแอปจาก GitHub</button>
       </div>
       <div class="status-box muted" id="backupStatus">กำลังโหลดสถานะ…</div>
+      <hr class="hr">
+      <div class="status-box muted" id="runtimeStatus">กำลังตรวจระบบพิมพ์…</div>
+      <div class="btnrow">
+        <button class="btn btn-outline" id="restartRuntime">🔄 เริ่มระบบใหม่</button>
+        <button class="btn btn-outline" id="stopRuntime">⏹️ ปิดระบบ</button>
+      </div>
+      <div class="status-box muted hidden" id="updateStatus"></div>
     </div>
   </div>
 </section>
@@ -174,7 +172,7 @@
 <div class="overlay" id="successModal">
   <div class="success-modal">
     <div class="s-check">✅</div>
-    <div class="s-title">สั่งพิมพ์สำเร็จ!</div>
+    <div class="s-title">เข้าคิวพิมพ์แล้ว!</div>
     <div class="s-detail" id="s-detail"></div>
     <div class="s-div"></div>
     <div class="s-thanks">ขอบคุณที่ใช้งาน <b>LabelPro Local</b> ☕</div>
@@ -206,7 +204,20 @@
   </div>
 </div>
 
+<div class="overlay" id="clearCustomersModal" role="dialog" aria-modal="true" aria-labelledby="clearTitle">
+  <div class="modal">
+    <div class="modal-head"><h3 id="clearTitle">⚠️ ล้างข้อมูลลูกค้าทั้งหมด</h3><button class="x" id="clearX" aria-label="ปิดคำเตือน">✕</button></div>
+    <div class="modal-body">
+      <p class="danger-note" id="clearSummary">กำลังตรวจจำนวนลูกค้า…</p>
+      <p>ข้อมูลลูกค้าจะถูกลบถาวร รวมรายการที่ปิดใช้งานแล้ว ระบบจะสำรองข้อมูลในเครื่องก่อนลบ หากสำรองไม่ได้จะไม่ล้างข้อมูล</p>
+      <p class="clear-scope">ข้อมูลผู้ส่งและการตั้งค่ายังคงอยู่ ประวัติงานพิมพ์ยังเก็บชื่อ ที่อยู่ และข้อมูลติดต่อเดิม</p>
+      <div class="field"><label for="clearPhrase">พิมพ์ <b>ล้างข้อมูล</b> เพื่อยืนยัน</label><input id="clearPhrase" autocomplete="off" spellcheck="false"></div>
+      <p class="danger-note" id="clearError" role="alert"></p>
+      <div class="modal-foot"><button class="btn btn-outline" id="clearCancel">ยกเลิก</button><button class="btn btn-danger" id="clearConfirm" disabled>ยืนยันล้างลูกค้าทั้งหมด</button></div>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

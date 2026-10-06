@@ -1,0 +1,11 @@
+import Database from 'better-sqlite3';
+import express from 'express';
+import { chromium } from 'playwright';
+import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+const require = createRequire(import.meta.url);
+const db = new Database(':memory:'); db.close(); express();
+if (process.platform==='win32' && !existsSync(join(dirname(require.resolve('pdf-to-printer')),'SumatraPDF-3.4.6-32.exe'))) throw new Error('โปรแกรมส่งพิมพ์ไม่ครบ');
+const browser = await chromium.launch({headless:true}); await browser.close();
+console.log('LABELPRO_SETUP_READY');

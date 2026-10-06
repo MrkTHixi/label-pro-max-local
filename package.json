@@ -1,27 +1,35 @@
 {
   "dependencies": {
+    "@fontsource/noto-sans-thai": "^5.3.0",
     "better-sqlite3": "^12.11.1",
     "express": "^4.21.2",
     "multer": "^2.4.0",
-    "pdfkit": "^0.20.2",
+    "pdf-lib": "^1.17.1",
+    "playwright": "^1.63.0",
     "xlsx": "^0.18.5"
   },
   "description": "Local-first label printing system for Thai parcel labels (100x150mm). No cloud, no sync — each branch PC runs everything locally.",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "name": "labelpro-local",
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true
+  },
   "scripts": {
     "backup": "node scripts/backup.mjs",
     "import-excel": "node scripts/import-excel.mjs",
     "restore": "node scripts/restore.mjs",
     "smoke": "node tests/smoke.mjs",
-    "start": "node server/index.mjs",
+    "test:windows": "node tests/windows-launch.mjs",
+    "start": "node scripts/runtime.mjs",
+    "server": "node server/index.mjs",
+    "setup": "node node_modules/playwright/cli.js install chromium --only-shell",
     "update": "node scripts/update.mjs",
     "worker": "node server/print-worker.mjs"
   },
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "optionalDependencies": {
     "pdf-to-printer": "^5.8.1"
   }

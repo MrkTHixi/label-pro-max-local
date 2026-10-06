@@ -1,53 +1,31 @@
-// scripts/restore.mjs — กู้ฐานข้อมูลจากไฟล์สำรอง .sql.gz
-// ใช้: node scripts/restore.mjs <ไฟล์.sql.gz>
-// ขั้นตอน: 1) copy data/labelpro.db ปัจจุบันเป็น .bak กันพลาด
-//          2) gunzip dump → pipe เข้า sqlite3 สร้าง db ใหม่
-//          3) แทนที่ไฟล์เดิม
-import { execFileSync } from 'node:child_process';
-import {
-  createReadStream, createWriteStream, readFileSync,
-  copyFileSync, existsSync, renameSync, rmSync,
-} from 'node:fs';
-import { join, basename } from 'node:path';
-import { createGunzip } from 'node:zlib';
-import { pipeline } from 'node:stream/promises';
-import { ROOT, DATA_DIR, DB_PATH } from '../server/db.mjs';
-
+// Stop LabelPro first. Do not import db.mjs and migrate/create the destination.
+import Database from 'better-sqlite3';
+import { readFileSync, copyFileSync, existsSync, renameSync, rmSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { gunzipSync } from 'node:zlib';
+import { DB_PATH } from '../server/paths.mjs';
+import { createLocalBackup } from '../server/local-backup.mjs';
+import { isLockActive } from '../server/process-lock.mjs';
 const file = process.argv[2];
-if (!file || !existsSync(file)) {
-  console.error('ใช้: node scripts/restore.mjs <ไฟล์.sql.gz>');
-  process.exit(1);
-}
-if (!file.endsWith('.sql.gz')) {
-  console.error('รองรับเฉพาะไฟล์ .sql.gz (ถ้าเป็น .db binary ให้ copy ทับ data/labelpro.db ตรง ๆ)');
-  process.exit(1);
-}
-
-const tag = Date.now();
-const tmpSql = join(DATA_DIR, `_restore_${tag}.sql`);
-const tmpDb = join(DATA_DIR, `_restore_${tag}.db`);
-const bakDb = join(DATA_DIR, `labelpro.bak_${new Date().toISOString().replace(/[:.]/g, '-')}.db`);
-
+const temp = `${DB_PATH}.restore-${process.pid}`;
+let restored, current;
 try {
-  // 1. gunzip dump ลงไฟล์ .sql ชั่วคราว
-  await pipeline(createReadStream(file), createGunzip(), createWriteStream(tmpSql));
-  // 2. สร้าง db ใหม่จาก dump (ผ่าน sqlite3 CLI)
-  execFileSync('sqlite3', [tmpDb], { input: readFileSync(tmpSql, 'utf8') });
-  // 3. สำรองของเดิมก่อนทับ (รวมไฟล์ -wal/-shm)
+  if (!file || !existsSync(file) || !/\.(db|sql\.gz)$/.test(file)) throw new Error('ใช้: npm run restore -- <ไฟล์.db หรือ .sql.gz>');
+  if (['runtime','worker','server'].some((role) => isLockActive(`${DB_PATH}.${role}.lock`))) throw new Error('กรุณาปิดระบบด้วย stop-labelpro.vbs ก่อนกู้คืน');
+  mkdirSync(dirname(DB_PATH), { recursive: true });
+  if (file.endsWith('.db')) copyFileSync(file, temp);
+  restored = new Database(temp);
+  if (file.endsWith('.sql.gz')) restored.exec(gunzipSync(readFileSync(file)).toString('utf8'));
+  if (restored.pragma('integrity_check', { simple: true }) !== 'ok' || !restored.prepare("SELECT 1 FROM sqlite_master WHERE name='customers'").get()) throw new Error('ไฟล์สำรองไม่ใช่ฐานข้อมูล LabelPro ที่สมบูรณ์');
+  restored.pragma('wal_checkpoint(TRUNCATE)'); restored.close(); restored = null;
   if (existsSync(DB_PATH)) {
-    copyFileSync(DB_PATH, bakDb);
-    console.log('สำรอง db เดิมไว้ที่:', basename(bakDb));
-    for (const ext of ['', '-wal', '-shm']) {
-      try { rmSync(DB_PATH + ext); } catch { /* ไม่มีไฟล์ก็ข้าม */ }
-    }
+    current = new Database(DB_PATH);
+    console.log('สำรองก่อนกู้คืน:', await createLocalBackup(current, undefined, 'before-restore'));
+    current.pragma('wal_checkpoint(TRUNCATE)'); current.close(); current = null;
+    renameSync(DB_PATH, DB_PATH + '.before-restore-' + Date.now());
   }
-  renameSync(tmpDb, DB_PATH);
-  console.log('กู้คืนสำเร็จจาก:', basename(file));
-  console.log('เปิดแอปแล้วตรวจข้อมูล — ถ้าผิดพลาด กู้ไฟล์ .bak กลับได้');
-} catch (e) {
-  console.error('กู้คืนล้มเหลว:', e.message);
-  process.exitCode = 1;
-} finally {
-  try { rmSync(tmpSql); } catch { /* ignore */ }
-  try { rmSync(tmpDb); } catch { /* ignore */ }
-}
+  for (const suffix of ['-wal', '-shm']) rmSync(DB_PATH + suffix, { force: true });
+  renameSync(temp, DB_PATH);
+  console.log('กู้คืนสำเร็จ เปิด LabelPro และตรวจข้อมูลได้เลย');
+} catch (error) { console.error(error.message); process.exitCode = 1; }
+finally { restored?.close(); current?.close(); for (const suffix of ['', '-wal', '-shm']) rmSync(temp + suffix, { force: true }); }

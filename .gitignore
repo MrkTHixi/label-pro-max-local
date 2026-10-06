@@ -1,7 +1,13 @@
 # dependencies
 node_modules/
+.runtime/
+data/*.lock
+data/*.lock.*
+tmp/
+output/
 
 # ฐานข้อมูลจริงของสาขา (backup ผ่าน git repo แยก ไม่ใช่ repo นี้)
+/data/
 data/*.db
 data/*.db-wal
 data/*.db-shm

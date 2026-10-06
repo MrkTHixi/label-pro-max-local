@@ -1,109 +1,57 @@
-// server/printer-drivers.mjs — PrinterDriver ทั้งหมดของ print worker
-//
-// โมเดลเครื่องพิมพ์ของผู้ใช้: Grozziie TP518 (thermal 4x6"/100x150mm, 203dpi, USB)
-// → เป็นเครื่องแบบ "Windows-driver-based" ไม่มีภาษา TSPL/ZPL ให้ส่งตรง
-//   จึงพิมพ์ผ่าน driver ของ Windows: เรนเดอร์ฉลากเป็น PDF (100×150mm เป๊ะ)
-//   แล้วส่งเข้า print spooler แบบเงียบด้วย pdf-to-printer (SumatraPDF)
-//   (โครง TsplDriver เดิมถูกลบออก — เครื่องรุ่นนี้ไม่รองรับ TSPL)
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { getSetting, ROOT } from './db.mjs';
+import { mkdir, mkdtemp, writeFile, rm, readdir, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { createRequire } from 'node:module';
+import { getSetting } from './db.mjs';
+import { APP_ID } from './paths.mjs';
 import { renderLabelPdf } from './label-pdf.mjs';
-
-const PRINTED_DIR = join(ROOT, 'printed');
-mkdirSync(PRINTED_DIR, { recursive: true });
-
-// ============================================================================
-// MockDriver: เขียนฉลากเป็นไฟล์ .txt ลง printed/ (dev/test บนเครื่องที่ไม่มี printer)
-// ============================================================================
-export class MockDriver {
-  async print(job) {
-    const msg = job.message || '';
-    const lines = [
-      '================ ฉลากพัสดุ 100x150 มม. (MOCK) ================',
-      `งาน #${job.id}  วันที่: ${job.created_at}`,
-      '',
-      `**** ${msg} ****`,
-      `ผู้ส่ง: ${job.sender_name || '-'}`,
-      `เบอร์โทร ${job.sender_phone || '-'}`,
-      `${job.sender_address || ''}`,
-      `${job.sender_address_extra || ''}`,
-      '------------------------------------------------',
-      'ผู้รับ',
-      `${job.place_name || '-'}`,
-      `${job.attention_name || ''}`,
-      `${job.address || ''}`,
-      '',
-      `ติดต่อ: ${job.contact || '-'}`,
-      `**** ${msg} ****`,
-      '',
-      `จำนวน: ${job.copies} ใบ`,
-      `พิมพ์โดย: ${job.printed_by || '-'}`,
-      '================================================',
-    ];
-    const fname = `job-${String(job.id).padStart(5, '0')}.txt`;
-    writeFileSync(join(PRINTED_DIR, fname), lines.join('\n'), 'utf8');
+import { listWindowsPrinters } from './windows-printers.mjs';
+const require = createRequire(import.meta.url), execute = promisify(execFile);
+export const PRINT_TEMP = process.env.LABELPRO_PRINT_TEMP || join(tmpdir(), 'labelpro-print-' + APP_ID);
+export async function cleanupStalePrintFiles(directory = PRINT_TEMP, maxAge = 24 * 60 * 60 * 1000) {
+  await mkdir(directory, { recursive: true });
+  for (const name of await readdir(directory)) {
+    if (!name.startsWith('job-')) continue;
+    const path = join(directory, name);
+    if ((await stat(path)).mtimeMs < Date.now() - maxAge) await rm(path, { recursive: true, force: true });
   }
 }
-
-// ============================================================================
-// WindowsPdfDriver: เรนเดอร์ PDF → ส่งพิมพ์เงียบผ่าน Windows print spooler
-// ใช้บน PC ที่ต่อเครื่องพิมพ์ (ค่าเริ่มต้นบน win32)
-// ============================================================================
-
-// ลำดับการหาชื่อเครื่องพิมพ์: env PRINTER_NAME → settings.printer_name → error ภาษาไทย
+export class MockDriver { async print() {} }
 export function resolvePrinterName() {
-  const fromEnv = (process.env.PRINTER_NAME || '').trim();
-  if (fromEnv) return fromEnv;
-  const fromDb = String(getSetting('printer_name') || '').trim();
-  if (fromDb) return fromDb;
-  throw new Error(
-    'ยังไม่ได้ตั้งชื่อเครื่องพิมพ์ — เปิดหน้า "ตั้งค่า" แล้วกรอกชื่อเครื่องพิมพ์ให้ตรงกับใน ' +
-    'Control Panel → Devices and Printers (เช่น Grozziie TP518) หรือตั้ง env PRINTER_NAME'
-  );
+  const name = (process.env.PRINTER_NAME || getSetting('printer_name')).trim();
+  if (!name) throw new Error('ยังไม่ได้ตั้งชื่อเครื่องพิมพ์ กรุณาเปิดหน้า ตั้งค่า และกรอกชื่อให้ตรงกับ Windows');
+  return name;
 }
-
+export async function sendWindowsPdf(path, options) {
+  const printers=await listWindowsPrinters();
+  const printer=printers.find((p)=>p.name===options.printer);
+  if(!printer)throw new Error('ไม่พบชื่อเครื่องพิมพ์ที่ตั้งไว้ กรุณาเลือกชื่อจากรายการในหน้า ตั้งค่า');
+  if(printer.offline)throw new Error('เครื่องพิมพ์อยู่ในโหมด offline กรุณาตรวจสาย USB และสถานะใน Windows');
+  let binary;
+  try { binary = join(dirname(require.resolve('pdf-to-printer')), 'SumatraPDF-3.4.6-32.exe'); }
+  catch { throw new Error('ไม่พบโปรแกรมส่งพิมพ์ กรุณาเปิด start-labelpro.vbs เพื่อเตรียมระบบ'); }
+  if (!existsSync(binary)) throw new Error('ไม่พบ SumatraPDF กรุณาติดตั้ง dependency ใหม่');
+  await execute(binary, ['-print-to', options.printer, '-silent', '-print-settings', `noscale,${options.copies}x`, path], { windowsHide: true, timeout: 120_000 });
+}
 export class WindowsPdfDriver {
-  async print(job, sender) {
-    const printerName = resolvePrinterName(); // โยน error ภาษาไทยถ้ายังไม่ตั้ง
-    // 1) เรนเดอร์ฉลากเป็น PDF 100×150mm เป๊ะ
-    const pdf = await renderLabelPdf(job, sender || {});
-    const fname = `job-${String(job.id).padStart(5, '0')}.pdf`;
-    const pdfPath = join(PRINTED_DIR, fname);
-    writeFileSync(pdfPath, pdf);
-    // 2) ส่งพิมพ์เงียบ (lazy import — pdf-to-printer เป็น optionalDependency เฉพาะ Windows)
-    let printFn;
+  constructor({ render = renderLabelPdf, send = sendWindowsPdf, printer = resolvePrinterName, tempDir = PRINT_TEMP } = {}) { Object.assign(this, { render, send, printer, tempDir }); }
+  async print(job) {
+    const printer = this.printer(), pdf = await this.render(job, job);
+    await mkdir(this.tempDir, { recursive: true });
+    const directory = await mkdtemp(join(this.tempDir, `job-${job.id}-`));
     try {
-      const mod = await import('pdf-to-printer');
-      printFn = mod.print || mod.default?.print;
-      if (typeof printFn !== 'function') throw new Error('no print export');
-    } catch (e) {
-      throw new Error('ไม่พบ pdf-to-printer — รัน `npm install` บนเครื่อง Windows ก่อน: ' + (e?.message || e));
-    }
-    try {
-      // scale:'noscale' = พิมพ์ขนาดจริงตาม PDF (100×150mm) ไม่ย่อ/ขยายตามกระดาษ
-      await printFn(pdfPath, {
-        printer: printerName,
-        copies: Math.min(20, Math.max(1, Number(job.copies) || 1)),
-        scale: 'noscale',
-        silent: true,
-      });
-      rmSync(pdfPath, { force: true }); // สำเร็จแล้วลบไฟล์ temp
-    } catch (e) {
-      // พิมพ์ล้มเหลว → เก็บ PDF ไว้ดู (debug) แล้วโยน error ให้ worker mark failed
-      throw new Error(`สั่งพิมพ์ไป "${printerName}" ไม่สำเร็จ (เก็บไฟล์ ${fname} ไว้ตรวจสอบ): ${e?.message || e}`);
-    }
+      const path = join(directory, 'label.pdf'); await writeFile(path, pdf);
+      await this.send(path, { printer, copies: Math.min(20, Math.max(1, Math.floor(Number(job.copies) || 1))) });
+    } catch (error) { throw new Error(`ส่งงานไป "${printer}" ไม่สำเร็จ: ${error.message}`); }
+    finally { await rm(directory, { recursive: true, force: true }); }
   }
 }
-
-// เลือก driver: PRINT_DRIVER=mock บังคับ mock; ค่าเริ่มต้น = windows บน win32, mock ที่อื่น
 export function resolveDriverName() {
-  const which = (process.env.PRINT_DRIVER || '').toLowerCase();
-  if (which === 'mock') return 'mock';
-  if (which === 'windows') return 'windows';
-  return process.platform === 'win32' ? 'windows' : 'mock';
+  const name = (process.env.PRINT_DRIVER || '').toLowerCase();
+  if (name && !['mock','windows'].includes(name)) throw new Error('PRINT_DRIVER ต้องเป็น mock หรือ windows');
+  return name || (process.platform === 'win32' ? 'windows' : 'mock');
 }
-
-export function makeDriver() {
-  return resolveDriverName() === 'windows' ? new WindowsPdfDriver() : new MockDriver();
-}
+export function makeDriver() { return resolveDriverName() === 'windows' ? new WindowsPdfDriver() : new MockDriver(); }
