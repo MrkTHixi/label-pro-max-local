@@ -535,8 +535,22 @@ $('restartRuntime').addEventListener('click', async () => {
   const d=await api.post('/api/runtime/restart'); toast(d.ok?'กำลังเริ่มระบบใหม่ กรุณารอสักครู่แล้วรีเฟรช':d.message,!d.ok);
 });
 $('stopRuntime').addEventListener('click', async () => {
-  if(!confirm('ปิดระบบ Label Pro Max Local? งานที่กำลังส่งพิมพ์จะทำให้เสร็จก่อนปิด')) return;
-  const d=await api.post('/api/runtime/stop'); toast(d.ok?'กำลังปิดระบบ เปิดอีกครั้งด้วย start-label-pro-max-local.vbs':d.message,!d.ok);
+  if(!confirm('ปิดระบบและหน้าต่างแอป? งานที่กำลังส่งพิมพ์จะทำให้เสร็จก่อนปิด')) return;
+  const result=await api.post('/api/runtime/stop');
+  if(!result.ok){toast(result.message,true);return;}
+  $('updateProgressTitle').textContent='กำลังปิดระบบ';
+  $('updateProgressModal').classList.add('open');$('updateProgressText').textContent='กำลังรอให้งานปัจจุบันเสร็จ แล้วปิดหน้าต่างแอป';
+  const deadline=Date.now()+150000;
+  async function waitForStop(){
+    const health=await api.get('/api/health');
+    if(health.disconnected){
+      $('updateProgressText').textContent='ปิดระบบแล้ว หากหน้าต่างยังเปิดอยู่สามารถปิดได้ เปิดครั้งถัดไปจากทางลัด Desktop';
+      window.close();return;
+    }
+    if(Date.now()>deadline){$('updateProgressModal').classList.remove('open');toast('ระบบยังไม่หยุด กรุณาตรวจคิวงาน',true);return;}
+    setTimeout(waitForStop,1000);
+  }
+  waitForStop();
 });
 
 let clearInfo = null, clearBusy = false, clearPreviousFocus;
