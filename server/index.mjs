@@ -1,6 +1,7 @@
 // server/index.mjs — Label Pro Max Local web server
 // รัน: npm start  →  http://localhost:3000
 import express from 'express';
+import { downloadGithubBackup } from './github-backup.mjs';
 import multer from 'multer';
 import { spawn, execFile } from 'node:child_process';
 import { basename, join } from 'node:path';
@@ -41,7 +42,7 @@ const err = (res, code, message) => res.status(code).json({ ok: false, message }
 // ---------- health ----------
 app.get('/api/health', (_req, res) => {
   const worker = db.prepare('SELECT * FROM worker_state WHERE id=1').get();
-  ok(res, { app_id: APP_ID, version: APP_VERSION, pid: process.pid, time: now(), branch: getSetting('branch_name'), managed: !!process.send,
+  ok(res, { project_root: ROOT, database_path: DB_PATH, app_id: APP_ID, version: APP_VERSION, pid: process.pid, time: now(), branch: getSetting('branch_name'), managed: !!process.send,
     worker: { ready: !!worker && Date.now() - Date.parse(worker.heartbeat) < 10000, driver: worker?.driver || null } });
 });
 
@@ -325,6 +326,19 @@ function runDetached(script, args = []) {
   child.on('error', (error) => console.error('[background]', error.message));
   child.unref();
 }
+
+let downloadingBackup=false;
+app.post('/api/backup/download', async (_req,res)=>{
+  if(downloadingBackup)return err(res,409,'กำลังดาวน์โหลด กรุณารอสักครู่');
+  downloadingBackup=true;
+  try{
+    const file=await downloadGithubBackup(getSetting('backup_repo_url'));
+    res.set('Content-Type','application/gzip');
+    res.set('Content-Disposition',`attachment; filename="${file.name}"`);
+    res.send(file.data);
+  }catch(error){err(res,400,error.message);}
+  finally{downloadingBackup=false;}
+});
 
 app.post('/api/backup', (_req, res) => {
   runDetached('backup.mjs');
