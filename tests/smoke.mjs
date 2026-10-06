@@ -170,6 +170,58 @@ try {
   assert(false, 'driver selection รันจบ: ' + String(e.message).slice(0, 300));
 }
 
+console.log('[smoke] /api/printers + mapPrintFailure …');
+try {
+  // 1) บูต server จริงแล้วเรียก /api/printers (บน linux ต้องได้ printers: [] แบบไม่ throw)
+  const port = 3211;
+  const srv = spawn(process.execPath, [join(ROOT, 'server', 'index.mjs')], {
+    cwd: ROOT,
+    env: { ...process.env, PORT: String(port), LABELPRO_DB: join(tmp, 'api.db') },
+  });
+  let ready = false;
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    try { const r = await fetch(`http://localhost:${port}/api/health`); if (r.ok) { ready = true; break; } } catch { /* ยังไม่พร้อม */ }
+  }
+  assert(ready, 'server บูตก่อนทดสอบ /api/printers');
+  const pd = await (await fetch(`http://localhost:${port}/api/printers`)).json();
+  srv.kill('SIGTERM');
+  await new Promise((r) => setTimeout(r, 1000));
+  assert(pd.ok === true, '/api/printers ตอบ ok:true');
+  assert(Array.isArray(pd.printers), '/api/printers คืน printers เป็น array');
+  assert(pd.printers.every((x) => typeof x === 'string'), 'printers เป็น array ของ string ล้วน');
+  if (process.platform !== 'win32') {
+    assert(pd.printers.length === 0, 'บน linux ได้ printers ว่างโดยไม่ throw');
+  }
+
+  // 2) mapPrintFailure: เคสชื่อ printer ผิด (error จริงจาก user: -print-to TP518)
+  const { mapPrintFailure } = await import(join(ROOT, 'server', 'printer-drivers.mjs'));
+  const realErr = 'Command failed: E:\\labelpro-local\\node_modules\\pdf-to-printer\\dist\\SumatraPDF-3.4.6-32.exe -print-to TP518 -silent -print-settings noscale,1x E:\\labelpro-local\\printed\\job-00008.pdf';
+  const msg = mapPrintFailure('TP518', 'job-00008.pdf', new Error(realErr));
+  assert(msg.includes('ชื่อเครื่องพิมพ์ไม่ตรง'), 'error พูดถึงชื่อ printer → hint ชื่อไม่ตรง');
+  assert(msg.includes('job-00008.pdf'), 'error บอกชื่อไฟล์ PDF ที่เก็บไว้');
+  assert(msg.includes('ตั้งค่า'), 'error บอกให้ไปหน้า ตั้งค่า');
+  assert(/[ก-๛]/.test(msg), 'error เป็นภาษาไทย');
+
+  // 3) error แปลก ๆ → ยังได้ข้อความไทย + ชื่อไฟล์ (ไม่ throw)
+  const msg2 = mapPrintFailure('SomePrinter', 'job-00009.pdf', 'weird failure 123');
+  assert(msg2.includes('job-00009.pdf') && /[ก-๛]/.test(msg2), 'error แปลกๆ → ยังได้ข้อความไทยพร้อมชื่อไฟล์');
+
+  // 4) queue UI แสดง error ใต้ failed jobs
+  const appJs = readFileSync(join(ROOT, 'web', 'app.js'), 'utf8');
+  assert(appJs.includes("j.status === 'failed' && j.error"), "queue UI เรนเดอร์ j.error ใต้ failed jobs");
+
+  // 5) settings UI มี dropdown + รีเฟรช + พิมพ์เอง
+  const html = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
+  assert(/<select[^>]*id="set_printer"/.test(html), 'settings มี dropdown เลือก printer');
+  assert(html.includes('id="refreshPrinters"'), 'settings มีปุ่มรีเฟรชรายการ printer');
+  assert(html.includes('id="set_printer_manual"'), 'settings มีช่องพิมพ์ชื่อเองสำรอง');
+  assert(html.includes('Devices and Printers'), 'มี hint ให้ดูชื่อใน Control Panel');
+  assert(appJs.includes('loadPrinterList'), 'app.js โหลดรายการ printer จาก /api/printers');
+} catch (e) {
+  assert(false, '/api/printers + mapPrintFailure: ' + String(e && e.message).slice(0, 300));
+}
+
 console.log('[smoke] print-worker import ไม่พังบน linux (lazy require) …');
 try {
   const out = execFileSync(process.execPath, ['server/print-worker.mjs'],
