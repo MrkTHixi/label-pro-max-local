@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LabelPro Local — ระบบพิมพ์ฉลากพัสดุ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="logo.png">
+<meta name="theme-color" content="#4A3220">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo"><img src="logo.png" alt="LabelPro Local"></div>
+    <div><h1>LabelPro Local</h1><small>CoffeeWORKS · ระบบพิมพ์ฉลากพัสดุ</small></div>
+  </div>
+  <span class="branch-chip" id="branchChip">📍 สาขา: —</span>
+  <nav class="top-actions">
+    <button class="btn btn-primary" data-view="print">🖨️ พิมพ์ฉลาก</button>
+    <button class="btn btn-ghost" data-view="queue">📋 คิวงาน <span class="badge hidden" id="queueBadge">0</span></button>
+    <button class="btn btn-ghost" data-view="customers">👥 ลูกค้า</button>
+    <button class="btn btn-ghost" data-view="settings">⚙️</button>
+  </nav>
+</header>
+
+<main class="wrap">
+
+<!-- ══════════ พิมพ์ฉลาก ══════════ -->
+<section class="screen active" id="view-print">
+  <div class="steps">
+    <div class="step now"><span class="n">1</span><div>ค้นหา<small>พิมพ์ชื่อสถานที่ / ชื่อลูกค้า / เบอร์โทร</small></div></div>
+    <div class="step-sep"></div>
+    <div class="step"><span class="n">2</span><div>ดับเบิลคลิกชื่อ<small>เปิดตัวเลือกการพิมพ์</small></div></div>
+    <div class="step-sep"></div>
+    <div class="step"><span class="n">3</span><div>สั่งพิมพ์<small>เข้าคิวอัตโนมัติ</small></div></div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <h2>🔍 ค้นหาลูกค้า</h2>
+        <div class="sub">ค้นหาด้วย <b>ชื่อสถานที่</b> ที่พนักงานตั้งจดจำ — พิมพ์ชื่อย่อได้เลย</div>
+        <div class="searchbox">
+          <input id="q" placeholder="พิมพ์ค้นหา: ชื่อสถานที่ / กรุณาส่ง / ติดต่อ..." autocomplete="off">
+        </div>
+        <div class="results" id="results"></div>
+      </div>
+    </div>
+
+    <div class="preview-wrap">
+      <div class="preview-cap">👁️ ตัวอย่างฉลากจริง 100 × 150 มม.</div>
+      <div class="labelpaper"><div class="inner">
+        <div class="lp-head" id="pv-msg-top">**** มีเอกสารค่ะ ****</div>
+        <div class="lp-sender" id="pv-sender">
+          <b>ผู้ส่ง: —</b><br>
+          <span class="muted">ตั้งค่าข้อมูลผู้ส่งในหน้า ⚙️ ตั้งค่า</span>
+        </div>
+        <div class="lp-div"></div>
+        <div class="lp-recv-label">ผู้รับ</div>
+        <div class="lp-place" id="pv-place">— เลือกลูกค้า —</div>
+        <div class="lp-name" id="pv-name"></div>
+        <div class="lp-addr"><span id="pv-addr"></span><br><br><span id="pv-contact"></span></div>
+        <div class="lp-foot" id="pv-msg-bot">**** มีเอกสารค่ะ ****</div>
+      </div></div>
+      <div class="edit-hint">บล็อกผู้รับ: <b>ชื่อสถานที่</b> ตัวใหญ่ → กรุณาส่ง → ที่อยู่ → ติดต่อ</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ คิวงานพิมพ์ ══════════ -->
+<section class="screen" id="view-queue">
+  <div class="stat-chips">
+    <div class="chip"><b style="color:var(--amber)" id="stWait">0</b><span>⏳ รอพิมพ์</span></div>
+    <div class="chip"><b style="color:var(--green)" id="stDone">0</b><span>✅ สำเร็จวันนี้</span></div>
+    <div class="chip"><b style="color:var(--red)" id="stFail">0</b><span>❌ ล้มเหลว</span></div>
+  </div>
+  <table>
+    <thead><tr><th>เวลา</th><th>ผู้รับ</th><th>ข้อความ</th><th>จำนวน</th><th>ผู้สั่ง</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody id="queueBody"></tbody>
+  </table>
+</section>
+
+<!-- ══════════ ลูกค้า ══════════ -->
+<section class="screen" id="view-customers">
+  <div class="toolbar">
+    <input id="custQ" placeholder="🔍 ค้นหาด้วยชื่อสถานที่ / กรุณาส่ง / ติดต่อ...">
+    <button class="btn btn-primary" id="addCustomerBtn">➕ เพิ่มลูกค้าใหม่</button>
+    <button class="btn btn-outline" id="importBtn">📥 นำเข้า Excel</button>
+    <input type="file" id="importFile" accept=".xlsx,.xls" class="hidden">
+  </div>
+  <table>
+    <thead><tr><th>ชื่อสถานที่</th><th>กรุณาส่ง</th><th>ที่อยู่</th><th>ติดต่อ</th><th></th></tr></thead>
+    <tbody id="custBody"></tbody>
+  </table>
+  <div class="foot-note">💡 ตารางนี้ตรงกับไฟล์ Excel 4 คอลัมน์: <b>ชื่อสถานที่ / กรุณาส่ง / ที่อยู่ / ติดต่อ</b> — ปุ่ม 📥 นำเข้า Excel อ่านชีต <b>PrintLabel</b> ได้เลย</div>
+</section>
+
+<!-- ══════════ ตั้งค่า ══════════ -->
+<section class="screen" id="view-settings">
+  <div class="grid2s">
+    <div class="card">
+      <h2>🏪 ข้อมูลผู้ส่ง</h2>
+      <div class="sub">พิมพ์บนฉลากทุกใบ (บล็อกบน)</div>
+      <div class="field"><label>ชื่อผู้ส่ง</label><input id="s_name"></div>
+      <div class="field"><label>เบอร์โทรผู้ส่ง</label><input id="s_phone" inputmode="tel"></div>
+      <div class="field"><label>ที่อยู่ผู้ส่ง</label><textarea id="s_address" rows="2"></textarea></div>
+      <div class="field"><label>ที่อยู่เพิ่มเติม</label><input id="s_address_extra"></div>
+      <button class="btn btn-coffee" id="saveSender">💾 บันทึกข้อมูลผู้ส่ง</button>
+    </div>
+    <div class="card">
+      <h2>🏷️ สาขา & สำรองข้อมูล</h2>
+      <div class="field"><label>ชื่อสาขา</label><input id="set_branch" placeholder="เช่น พัทยากลาง"></div>
+      <div class="field"><label>ชื่อเครื่องพิมพ์ (Windows)</label>
+        <input id="set_printer" placeholder="เช่น Grozziie TP518">
+        <div class="sub" style="margin:4px 0 0">คัดลอกชื่อให้ตรงกับใน Control Panel → Devices and Printers เป๊ะ ๆ (worker จะใช้ชื่อนี้สั่งพิมพ์)</div></div>
+      <div class="field"><label>Git repo สำหรับ backup (ว่างได้ = เก็บในเครื่องอย่างเดียว)</label>
+        <input id="set_backup_url" placeholder="https://github.com/ORG/labelpro-backup-pattaya.git"></div>
+      <div class="sub" style="margin-top:2px">💾 สำรองข้อมูลลง git <b>อัตโนมัติเมื่อเพิ่มลูกค้าใหม่</b> หรือกดปุ่มด้านล่าง — ไม่สำรองตามเวลา</div>
+      <button class="btn btn-coffee" id="saveSettings">💾 บันทึกตั้งค่า</button>
+      <hr class="hr">
+      <div class="btnrow">
+        <button class="btn btn-outline" id="backupNow">💾 สำรองข้อมูลตอนนี้</button>
+        <button class="btn btn-outline" id="updateNow">⬇️ อัปเดตแอปจาก GitHub</button>
+      </div>
+      <div class="status-box muted" id="backupStatus">กำลังโหลดสถานะ…</div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ══════════ POPUP: ตัวเลือกการพิมพ์ ══════════ -->
+<div class="overlay" id="printModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>🖨️ ตัวเลือกการพิมพ์</h3>
+      <button class="x" id="printX">✕</button>
+    </div>
+    <div class="modal-sub" id="m-sub"></div>
+    <div class="modal-body">
+      <h4>ข้อความบนฉลาก</h4>
+      <div class="msgbtns">
+        <button class="msgbtn sel" data-msg="มีเอกสารค่ะ">📦 มีเอกสารค่ะ<small>สำหรับพัสดุที่มีเอกสารแนบ</small></button>
+        <button class="msgbtn" data-msg="ขอบคุณค่ะ">💝 ขอบคุณค่ะ<small>สำหรับพัสดุขอบคุณลูกค้า</small></button>
+      </div>
+
+      <h4>จำนวนใบ <span class="fhint">— ปุ่มลัดบวกเพิ่มทีละชุด</span></h4>
+      <div class="qtyrow">
+        <div class="stepper"><button id="qMinus">−</button><b id="qty">1</b><button id="qPlus">+</button></div>
+        <button class="qbtn" data-add="2">+2</button>
+        <button class="qbtn" data-add="4">+4</button>
+        <button class="qbtn" data-add="6">+6</button>
+        <button class="qbtn" data-add="8">+8</button>
+        <button class="resetlink" id="qReset">รีเซ็ตเป็น 1</button>
+      </div>
+
+      <div class="field">
+        <label>ผู้สั่งพิมพ์</label>
+        <input id="m_by" placeholder="ชื่อพนักงาน">
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="printCancel">ยกเลิก</button>
+        <button class="btn btn-primary" id="confirmBtn">🖨️ สั่งพิมพ์ 1 ใบ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ POPUP: สั่งพิมพ์สำเร็จ ══════════ -->
+<div class="overlay" id="successModal">
+  <div class="success-modal">
+    <div class="s-check">✅</div>
+    <div class="s-title">สั่งพิมพ์สำเร็จ!</div>
+    <div class="s-detail" id="s-detail"></div>
+    <div class="s-div"></div>
+    <div class="s-thanks">ขอบคุณที่ใช้งาน <b>LabelPro Local</b> ☕</div>
+    <div class="s-day" id="s-day"></div>
+    <div><span class="s-bless" id="s-bless"></span></div>
+    <div class="s-count" id="s-count"></div>
+    <button class="btn btn-primary s-ok" id="successOk">ตกลง</button>
+  </div>
+</div>
+
+<!-- ══════════ POPUP: เพิ่ม/แก้ไขลูกค้า ══════════ -->
+<div class="overlay" id="custModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="custDialogTitle">➕ เพิ่มลูกค้าใหม่</h3>
+      <button class="x" id="custX">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="c_id">
+      <div class="field"><label>ชื่อสถานที่ * <span class="fhint">— ชื่อย่อที่พนักงานจำ (คีย์หลักในการค้นหา)</span></label><input id="c_place" placeholder="เช่น บ้าน, โรงงาน"></div>
+      <div class="field"><label>กรุณาส่ง <span class="fhint">— ชื่อผู้รับ/ส่งถึงใคร</span></label><input id="c_attention" placeholder="เช่น บ้าน คุณมานะ"></div>
+      <div class="field"><label>ที่อยู่</label><textarea id="c_address" rows="3"></textarea></div>
+      <div class="field"><label>ติดต่อ <span class="fhint">— ชื่อ+เบอร์โทร ผสมกันได้</span></label><input id="c_contact" placeholder="เช่น คุณมานะ เบอร์โทร 081-111-2222"></div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="custCancel">ยกเลิก</button>
+        <button class="btn btn-primary" id="custSave">💾 บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

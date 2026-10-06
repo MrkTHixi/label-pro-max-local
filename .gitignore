@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# ฐานข้อมูลจริงของสาขา (backup ผ่าน git repo แยก ไม่ใช่ repo นี้)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.bak_*.db
+data/worker.log
+data/_restore_*
+
+# repo สำรองแยก (มี .git ของตัวเอง)
+data-backup/
+
+# ไฟล์สำรอง local + ไฟล์ฉลากทดสอบ
+backups/
+printed/
+
+# config เครื่อง
+.env
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
