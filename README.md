@@ -22,25 +22,27 @@
 │         Thermal printer (USB)               │
 │                                             │
 │  scripts/backup.mjs ──► git repo แยก        │
-│  scripts/update.mjs ◄── GitHub (org)        │
+│  scripts/update.mjs ◄── GitHub (auto-pull)│
 └─────────────────────────────────────────────┘
 ```
 
-## เริ่มใช้งาน (5 นาที)
+## เริ่มใช้งาน (ไม่ต้องใช้ terminal)
 
-1. ติดตั้ง **Node.js 22 LTS** (สาย LTS ปัจจุบัน — อย่าใช้ Node 20 หมดอายุแล้วตั้งแต่ เม.ย. 2026) จาก https://nodejs.org
-2. เปิด terminal ในโฟลเดอร์นี้:
-   ```powershell
-   npm install
-   npm start
-   ```
-3. เปิด terminal อีกหน้าต่าง (เครื่องเดียวกัน):
-   ```powershell
-   npm run worker
-   ```
-4. เปิด browser ไปที่ **http://localhost:3000**
+**วิธีปกติ — ดับเบิลคลิกไฟล์เดียวจบ:**
+1. ติดตั้ง **Node.js 22 LTS** จาก https://nodejs.org (ครั้งเดียว)
+2. แตกไฟล์โปรเจกต์ไว้ที่ไหนก็ได้ (เช่น `Desktop\labelpro-local`)
+3. **ดับเบิลคลิก `start-labelpro.bat`** — ที่เหลือจัดการให้หมด:
+   - `npm install` ให้เองถ้าเป็นครั้งแรก
+   - ดึงโค้ดล่าสุดจาก GitHub ให้อัตโนมัติ (ถ้าเน็ตล่ม/ดึงไม่ได้ ก็รันเวอร์ชันเดิมต่อ ไม่พัง)
+   - สตาร์ท server (API+เว็บ) และ print worker พร้อมกัน
+   - เปิด browser ไปที่ **http://localhost:3000** ให้เอง
 
-> โหมดเริ่มต้น worker เป็น **mock** — งานพิมพ์จะถูกเขียนเป็นไฟล์ `.txt` ลงโฟลเดอร์ `printed/` แทนการพิมพ์จริง เอาไว้ทดสอบระบบ end-to-end ก่อนต่อเครื่องพิมพ์จริง
+**สำหรับ dev** (ไม่อยากให้ pull / อยากรันแยก):
+```powershell
+npm run server   # เฉพาะ server — ไม่ pull โค้ด
+npm run worker   # เฉพาะ print worker
+```
+> `npm start` = โหมดใช้งานจริง (pull → server+worker → เปิด browser)
 
 > **ติดตั้งเป็นแอป**: แอปมี `manifest.json` + ไอคอนพร้อมแล้ว — เปิด http://localhost:3000 ใน Chrome/Edge บนมือถือหรือ PC แล้วเลือก "ติดตั้งแอป"/"Add to Home Screen" จะได้ไอคอนโลโก้ร้านเปิดแบบเต็มจอ (standalone) เหมือนแอปจริง
 
@@ -123,24 +125,63 @@ Windows print spooler แบบเงียบ** ผ่าน `WindowsPdfDriver`
 
 - **ทำไมเป็น SQL text ไม่ใช่ไฟล์ .db**: git diff อ่านรู้เรื่อง, กู้ข้ามเวอร์ชันได้, ไฟล์เล็กกว่าเมื่อ gzip
 - **เมื่อไรถึงสำรอง**: มีแค่ 2 กรณี — (1) **เพิ่มลูกค้าใหม่สำเร็จ** (อัตโนมัติทันที เบื้องหลัง ไม่บล็อก) (2) กดปุ่ม **"สำรองข้อมูลตอนนี้"** ในหน้า Settings — **ไม่มีสำรองตามเวลาอัตโนมัติ** ตามที่เจ้าของร้านกำหนด
-- **repo แยก**: backup ถูก commit ลง `data-backup/` ซึ่งเป็น **git repo ของตัวเอง** (init อัตโนมัติ) ไม่ปนกับ repo โค้ด แล้ว push ไป `backup_repo_url` ที่ตั้งในหน้า Settings
+- **repo แยก**: backup ถูก commit ลง `data-backup/` ซึ่งเป็น **git repo ของตัวเอง** (init อัตโนมัติ) ไม่ปนกับ repo โค้ด แล้ว push ไป `backup_repo_url` ที่ตั้งในหน้า Settings — บนเครื่องสาขาใช้ URL แบบ SSH (`git@github.com:MrkTHixi/labelpro-backups.git`) คู่กับ deploy key ไม่ต้องล็อกอิน (ดูหัวข้อ Deploy Key ด้านล่าง)
 - **เน็ตล่ม**: commit เก็บไว้ในเครื่องก่อน รันครั้งหน้าจะ push commit ที่ค้างทั้งหมดให้เอง
 - กด "สำรองข้อมูลตอนนี้" ในหน้า Settings ได้ทุกเมื่อ / ดูประวัติในตาราง `backup_log`
 - กู้คืน: `node scripts/restore.mjs backups/labelpro-YYYYMMDD-HHMMSS.sql.gz` (มีสำรอง .bak ของ db เดิมให้ก่อนทับเสมอ)
 
-## อัปเดตแอปจาก GitHub
+## อัปเดตแอปจาก GitHub (อัตโนมัติ)
 
-**สำคัญ**: สร้าง repo นี้ใต้ **GitHub Organization ของร้าน** ไม่ใช่ account ส่วนตัว — กันปัญหาคนลาออกแล้ว repo เข้าไม่ได้/หาย (ตัวแอปตอนรันไม่ใช้ account อะไรเลย)
+repo โค้ด: `github.com/MrkTHixi/labelpro-local` (branch `main`)
 
-- กด "อัปเดตแอปจาก GitHub" ในหน้า Settings = `git pull --ff-only` เบื้องหลัง แล้ว restart `npm start` / `npm run worker`
-- หรือตั้ง **Windows Task Scheduler** ให้รัน `node scripts/update.mjs` ทุกเช้าก่อนเปิดร้าน
-- ทดสอบ/แก้โค้ดบนเครื่องตัวเอง (`npm start` ธรรมดา) → push ขึ้น GitHub → CI (`.github/workflows/ci.yml`) รัน smoke test ให้ → สาขากดอัปเดต
+- **อัตโนมัติทุกครั้งที่เปิดแอป**: `npm start` / ดับเบิลคลิก `start-labelpro.bat` จะ `git pull --ff-only` ให้ก่อนเสมอ — มีของใหม่ก็ได้ใช้ทันที
+- ถ้า pull ไม่ได้ (เน็ตล่ม/ยังไม่ผูก remote/มีไฟล์แก้ค้าง) **แอปจะรันเวอร์ชันเดิมต่อ ไม่พัง** แล้วเขียนบอกเหตุผลใน log
+- ปุ่ม "อัปเดตแอปจาก GitHub" ในหน้า Settings ยังมี (= `git pull` เบื้องหลัง แล้ว restart แอป)
+- ทดสอบ/แก้โค้ดบนเครื่องตัวเอง (`npm run server` ธรรมดา) → push ขึ้น GitHub → CI (`.github/workflows/ci.yml`) รัน smoke test ให้ → เครื่องสาขาดึงอัตโนมัติตอนเปิดครั้งถัดไป
 
-## รันเป็น service (เปิดเครื่องแล้วติดเอง)
+## ติดตั้งบนเครื่องสาขาโดยไม่ต้องล็อกอิน GitHub (Deploy Key)
 
-- **ง่ายสุด**: ใช้ [PM2](https://pm2.keymetrics.io) — `pm2 start npm --name labelpro -- start`, `pm2 start npm --name labelpro-worker -- run worker`, `pm2 startup`, `pm2 save`
-- หรือ **NSSM** ห่อ `node server/index.mjs` / `node server/print-worker.mjs` เป็น Windows Service
-- หน้าเว็บไม่มี build step — แก้ไฟล์ใน `web/` แล้วรีเฟรช browser ได้เลย
+เจ้าของร้านไม่ต้องเอา account GitHub ส่วนตัวไปล็อกอินบน PC สาขา — ใช้ **SSH deploy key ประจำเครื่อง** แทน (อ่านโค้ดได้อย่างเดียว / push backup ได้ ไม่มีสิทธิ์แตะต้อง repo อื่น)
+
+**1. บน PC สาขา — สร้าง key** (เปิด PowerShell รันทีละบรรทัด):
+```powershell
+ssh-keygen -t ed25519 -C "labelpro-branch1" -f "$env:USERPROFILE\.ssh\id_ed25519"
+```
+กด **Enter 2 ครั้ง** (ไม่ต้องตั้ง passphrase) แล้ว copy ข้อความ key ส่งให้เจ้าของร้าน:
+```powershell
+Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub"
+```
+
+**2. เจ้าของร้าน — เพิ่ม key ที่ GitHub** (ทำบน github.com, repo ละครั้ง):
+- repo `labelpro-local` → **Settings → Deploy keys → Add deploy key** → วาง key → ตั้งชื่อเช่น `branch1-pc` → **ไม่ต้องติ๊ก** *Allow write access* (อ่านอย่างเดียว)
+- repo `labelpro-backups` → ทำเหมือนกัน แต่ **ติ๊ก** *Allow write access* (สาขาต้อง push ไฟล์ backup ขึ้นไปได้)
+
+**3. บน PC สาขา — clone ด้วย SSH:**
+```powershell
+git clone git@github.com:MrkTHixi/labelpro-local.git
+```
+ครั้งแรกจะมีถามเรื่อง host key — พิมพ์ `yes` ครั้งเดียว (ครั้งต่อไปแอปจัดการให้เองอัตโนมัติ)
+
+**4. ในแอป** — หน้า ⚙️ ตั้งค่า → ช่อง **backup repo URL** ใส่:
+```
+git@github.com:MrkTHixi/labelpro-backups.git
+```
+
+**5. ดับเบิลคลิก `start-labelpro.bat`** ใช้งานได้เลย — auto-update (`git pull`) และ backup (`git push`) ทำงานผ่าน deploy key โดย**ไม่ต้องล็อกอิน GitHub บนเครื่องนี้เลย**
+
+> ถ้า git error ขึ้นข้อความไทยบอกเองว่าต้องแก้ตรงไหน เช่น *"GitHub ปฏิเสธ SSH key — ยังไม่ได้เพิ่ม deploy key…"* (ล็อกอยู่ใน console / `backup_log`)
+
+## รันตอนเปิดเครื่อง (ไม่ต้องกดเอง)
+
+**วิธีที่แนะนำ — Task Scheduler:**
+1. เปิด `Task Scheduler` → *Create Task…*
+2. แท็บ *General*: ตั้งชื่อ `LabelPro Local`, ติ๊ก **"Run only when user is logged on"**
+   (ต้องเห็น desktop เพราะต้องเปิด browser + เข้าถึง printer spooler)
+3. แท็บ *Triggers* → *New…* → *Begin the task:* **At startup** → ติ๊ก *Delay task for:* **30 seconds** (รอเน็ต/ระบบพร้อมก่อน)
+4. แท็บ *Actions* → *New…* → *Action:* Start a program → *Program/script:* เลือกไฟล์ **`start-labelpro-hidden.vbs`** ในโฟลเดอร์โปรเจกต์ (ตัวนี้รันแบบซ่อนหน้าต่าง)
+5. กด OK — เปิดเครื่องครั้งถัดไป แอปจะติดขึ้นมาเองพร้อม browser
+
+**ทางเลือกง่ายกว่า**: กด `Win+R` → พิมพ์ `shell:startup` → สร้าง shortcut ของ `start-labelpro-hidden.vbs` ไว้ในโฟลเดอร์นั้น — ได้ผลเหมือนกันตอน login
 
 ## API (เผื่อต่อยอด)
 

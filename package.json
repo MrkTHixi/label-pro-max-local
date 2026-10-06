@@ -16,7 +16,8 @@
     "import-excel": "node scripts/import-excel.mjs",
     "restore": "node scripts/restore.mjs",
     "smoke": "node tests/smoke.mjs",
-    "start": "node server/index.mjs",
+    "start": "node scripts/start.mjs",
+    "server": "node server/index.mjs",
     "update": "node scripts/update.mjs",
     "worker": "node server/print-worker.mjs"
   },
