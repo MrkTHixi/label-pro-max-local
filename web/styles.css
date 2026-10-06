@@ -39,12 +39,12 @@ body{font-family:'Sarabun',system-ui,sans-serif; background:var(--bg); color:var
 .screen.active{display:block}
 
 /* ── steps ── */
-.steps{display:flex; align-items:center; margin-bottom:20px; background:var(--card); border-radius:var(--radius); padding:14px 22px; box-shadow:var(--shadow)}
-.step{display:flex; align-items:center; gap:10px; font-family:'Prompt',sans-serif; font-weight:600; font-size:15px}
-.step .n{width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--coffee); display:flex; align-items:center; justify-content:center; font-size:14px}
+.steps{display:flex; align-items:center; margin-bottom:12px; background:var(--card); border-radius:10px; padding:7px 12px; box-shadow:var(--shadow)}
+.step{display:flex; align-items:center; gap:6px; font-family:'Prompt',sans-serif; font-weight:600; font-size:12px; line-height:1.35; min-width:0}
+.step .n{width:22px; height:22px; flex-shrink:0; border-radius:50%; background:var(--accent-soft); color:var(--coffee); display:flex; align-items:center; justify-content:center; font-size:11px}
 .step.now .n{background:var(--coffee); color:#fff}
-.step small{display:block; font-family:'Sarabun',sans-serif; font-weight:400; font-size:12px; color:var(--muted)}
-.step-sep{flex:1; height:2px; background:var(--line); margin:0 16px; border-radius:2px}
+.step small{display:block; font-family:'Sarabun',sans-serif; font-weight:400; font-size:10px; color:var(--muted)}
+.step-sep{flex:1; height:1px; background:var(--line); margin:0 10px; border-radius:2px}
 
 /* ── layout ── */
 .grid2{display:grid; grid-template-columns:1fr 340px; gap:20px; align-items:start}
