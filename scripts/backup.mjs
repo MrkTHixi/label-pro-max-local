@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { createGzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import { db, ROOT, DATA_DIR, DB_PATH, now, getSetting } from '../server/db.mjs';
+import { gitEnv, thaiGitHint } from './git-env.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const BACKUPS_DIR = join(ROOT, 'backups');
@@ -28,7 +29,9 @@ const stamp = () => {
 };
 
 function sh(cmd, opts = {}) {
-  return execSync(cmd, { encoding: 'utf8', stdio: 'pipe', ...opts }).trim();
+  // ทุกคำสั่ง git รันผ่าน SSH deploy key แบบ non-interactive:
+  // accept-new = รับ host key github.com อัตโนมัติครั้งแรก, BatchMode = ไม่ค้างถาม password
+  return execSync(cmd, { encoding: 'utf8', stdio: 'pipe', env: gitEnv(), ...opts }).trim();
 }
 function hasSqlite3() {
   try { execFileSync('sqlite3', ['--version'], { stdio: 'pipe' }); return true; }
@@ -114,7 +117,11 @@ async function main() {
         sh('git push -u origin main', { cwd: BACKUP_REPO, timeout: 60_000 });
         pushNote = `pushed to ${remote}`;
       } catch (e) {
-        pushNote = `push ล้มเหลว (เก็บไว้ push ครั้งหน้า): ${String(e.message).split('\n')[0]}`;
+        // push ผ่าน SSH deploy key — ถ้า key ยังไม่ถูกเพิ่มที่ GitHub จะ fail ทันที
+        // (BatchMode=yes ไม่ค้างถาม password) พร้อมคำแนะนำภาษาไทย
+        const raw = String(e.message).split('\n').filter((l) => l.trim()).slice(-4).join(' ');
+        const hint = thaiGitHint(e.message);
+        pushNote = `push ล้มเหลว (เก็บไว้ push ครั้งหน้า): ${raw.slice(0, 200)}${hint ? ` — ${hint}` : ''}`;
       }
     }
 
