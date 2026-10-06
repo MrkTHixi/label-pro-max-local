@@ -2,11 +2,11 @@
 // ทดสอบ: schema v2 → customers CRUD → ค้นหา → enqueue งานพิมพ์
 // → worker claim งาน (mock) → import Excel ตัวอย่าง → backup --dry-run
 // รัน: npm run smoke
-import { mkdtempSync, rmSync, readFileSync, copyFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, copyFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import Database from 'better-sqlite3';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -89,6 +89,7 @@ for (const f of [
   'server/index.mjs', 'server/db.mjs', 'server/print-worker.mjs',
   'server/label-pdf.mjs', 'server/printer-drivers.mjs',
   'scripts/backup.mjs', 'scripts/update.mjs', 'scripts/import-excel.mjs', 'scripts/restore.mjs',
+  'scripts/start.mjs', 'scripts/git-update.mjs',
   'web/app.js',
 ]) {
   try { execFileSync(process.execPath, ['--check', join(ROOT, f)], { stdio: 'pipe' }); assert(true, `syntax OK: ${f}`); }
@@ -178,6 +179,155 @@ try {
   // timeout ฆ่า process ที่รันค้าง (polling) → ถือว่าปกติ ขอแค่ log ขึ้น
   const out = String((e && e.stdout) || '');
   assert(out.includes('driver=mock'), 'worker เริ่มด้วย mock driver: ' + out.slice(0, 200));
+}
+
+console.log('[smoke] launcher files (Windows one-click) …');
+assert(existsSync(join(ROOT, 'start-labelpro.bat')), 'มี start-labelpro.bat');
+assert(existsSync(join(ROOT, 'start-labelpro-hidden.vbs')), 'มี start-labelpro-hidden.vbs');
+{
+  const bat = readFileSync(join(ROOT, 'start-labelpro.bat'), 'utf8');
+  assert(bat.includes('cd /d "%~dp0"'), '.bat cd ไปโฟลเดอร์ของตัวเองก่อน');
+  assert(bat.includes('npm start'), '.bat เรียก npm start');
+  const vbs = readFileSync(join(ROOT, 'start-labelpro-hidden.vbs'), 'utf8');
+  assert(vbs.includes('GetParentFolderName(WScript.ScriptFullName)'), '.vbs หา path ของตัวเองถูกวิธี (ไม่ใช้ %~dp0)');
+  assert(vbs.includes(', 0, False'), '.vbs รันแบบซ่อนหน้าต่าง');
+}
+
+console.log('[smoke] git-update: tryAutoPull …');
+try {
+  const { tryAutoPull } = await import(join(ROOT, 'scripts', 'git-update.mjs'));
+  const gtmp = mkdtempSync(join(tmpdir(), 'labelpro-git-'));
+  const git = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
+  const gitInit = (cwd) => {
+    git(['init', '-b', 'main'], cwd);
+    git(['config', 'user.email', 'test@local'], cwd);
+    git(['config', 'user.name', 'smoke'], cwd);
+    git(['config', 'commit.gpgsign', 'false'], cwd);
+  };
+
+  // 1) ไม่มี .git → ข้ามแบบนุ่มนวล
+  mkdirSync(join(gtmp, 'nogit'), { recursive: true });
+  const r1 = await tryAutoPull(join(gtmp, 'nogit'));
+  assert(r1.status === 'skipped-no-git', 'ไม่มี .git → skipped-no-git');
+
+  // 2) repo สะอาดแต่ไม่มี remote → failed แบบไม่ throw (เหมือนเน็ตล่ม/ยังไม่ผูก remote)
+  const w1 = join(gtmp, 'w1');
+  mkdirSync(w1, { recursive: true });
+  gitInit(w1);
+  writeFileSync(join(w1, 'a.txt'), 'a');
+  git(['add', '.'], w1);
+  git(['commit', '-m', 'init'], w1);
+  const r2 = await tryAutoPull(w1);
+  assert(r2.status === 'failed', 'ไม่มี remote → failed แบบไม่ throw: ' + r2.detail.slice(0, 60));
+
+  // 3) working tree สกปรก → ข้ามเพื่อไม่ทับงาน
+  writeFileSync(join(w1, 'a.txt'), 'dirty-local-edit');
+  const r3 = await tryAutoPull(w1);
+  assert(r3.status === 'skipped-dirty', 'ไฟล์แก้ค้าง → skipped-dirty');
+  git(['checkout', '--', '.'], w1);
+
+  // 4) มี remote (bare repo ในเครื่อง) → up-to-date
+  const bare = join(gtmp, 'remote.git');
+  git(['init', '--bare', bare], gtmp);
+  git(['remote', 'add', 'origin', bare], w1);
+  git(['push', '-u', 'origin', 'main'], w1);
+  git(['--git-dir', bare, 'symbolic-ref', 'HEAD', 'refs/heads/main']); // ให้ clone ต่อมา checkout main ถูก
+  const r4 = await tryAutoPull(w1);
+  assert(r4.status === 'up-to-date', 'ตรงกับ remote → up-to-date');
+
+  // 5) มี commit ใหม่บน remote → pulled และไฟล์มาจริง
+  const w2 = join(gtmp, 'w2');
+  git(['clone', bare, w2], gtmp);
+  git(['config', 'user.email', 'test@local'], w2);
+  git(['config', 'user.name', 'smoke'], w2);
+  writeFileSync(join(w2, 'b.txt'), 'from-remote');
+  git(['add', '.'], w2);
+  git(['commit', '-m', 'second'], w2);
+  git(['push', 'origin', 'main'], w2);
+  const r5 = await tryAutoPull(w1);
+  assert(r5.status === 'pulled', 'มี commit ใหม่ → pulled: ' + r5.detail.slice(0, 60));
+  assert(existsSync(join(w1, 'b.txt')), 'ไฟล์จาก remote มาถึง working tree');
+  // เรียกซ้ำต้องได้ up-to-date (idempotent)
+  const r6 = await tryAutoPull(w1);
+  assert(r6.status === 'up-to-date', 'pull ซ้ำ → up-to-date');
+
+  rmSync(gtmp, { recursive: true, force: true });
+} catch (e) {
+  assert(false, 'tryAutoPull รันจบ: ' + String(e && e.message).slice(0, 300));
+}
+
+console.log('[smoke] git-env: SSH non-interactive + Thai errors …');
+try {
+  const { gitEnv, thaiGitHint, runGit, GIT_SSH_COMMAND } = await import(join(ROOT, 'scripts', 'git-env.mjs'));
+
+  // 1) GIT_SSH_COMMAND ต้องมีทั้ง accept-new และ BatchMode
+  assert(typeof GIT_SSH_COMMAND === 'string', 'export GIT_SSH_COMMAND');
+  assert(GIT_SSH_COMMAND.includes('StrictHostKeyChecking=accept-new'), 'SSH: accept-new (ไม่ค้างถาม host key)');
+  assert(GIT_SSH_COMMAND.includes('BatchMode=yes'), 'SSH: BatchMode=yes (ไม่ค้างถาม password)');
+  const env = gitEnv();
+  assert(env.GIT_SSH_COMMAND === GIT_SSH_COMMAND, 'gitEnv() ส่ง GIT_SSH_COMMAND ให้ child process');
+  assert(env.PATH === process.env.PATH, 'gitEnv() เก็บ env เดิมของ process ไว้');
+
+  // 2) thaiGitHint แปล error ทั่วไปเป็นภาษาไทย
+  assert(thaiGitHint('git@github.com: Permission denied (publickey).').includes('deploy key'),
+    'hint: Permission denied → บอกเรื่อง deploy key');
+  assert(thaiGitHint('ssh: Could not resolve hostname github.com').includes('อินเทอร์เน็ต'),
+    'hint: DNS ล่ม → บอกเรื่องเน็ต');
+  assert(thaiGitHint('ERROR: Repository not found.').includes('deploy key'),
+    'hint: Repository not found → บอกเรื่องสิทธิ์ key');
+  assert(thaiGitHint('some random output') === '', 'hint: error ไม่รู้จัก → ไม่แต่งเรื่อง');
+
+  // 3) remote เสีย → failed พร้อมข้อความไทย และต้องจบไว (ไม่ค้าง)
+  //    ใช้ SSH URL ที่ DNS ไม่มีทาง resolve (invalid.invalid) + BatchMode → fail ทันที ไม่ถาม password
+  const gtmp2 = mkdtempSync(join(tmpdir(), 'labelpro-gitfail-'));
+  const bad = join(gtmp2, 'bad');
+  mkdirSync(bad, { recursive: true });
+  execFileSync('git', ['init', '-b', 'main'], { cwd: bad, stdio: 'pipe' });
+  execFileSync('git', ['config', 'user.email', 'test@local'], { cwd: bad, stdio: 'pipe' });
+  execFileSync('git', ['config', 'user.name', 'smoke'], { cwd: bad, stdio: 'pipe' });
+  execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: bad, stdio: 'pipe' });
+  writeFileSync(join(bad, 'a.txt'), 'a');
+  execFileSync('git', ['add', '.'], { cwd: bad, stdio: 'pipe' });
+  execFileSync('git', ['commit', '-m', 'init'], { cwd: bad, stdio: 'pipe' });
+  execFileSync('git', ['remote', 'add', 'origin', 'ssh://git@invalid.invalid/MrkTHixi/__nope__.git'], { cwd: bad, stdio: 'pipe' });
+
+  const t0 = Date.now();
+  const r = await runGit(['pull', '--ff-only'], bad, { timeout: 30_000 });
+  const elapsed = Date.now() - t0;
+  assert(r.ok === false, 'pull ไป remote เสีย → ok:false (ไม่ throw)');
+  assert(/[ก-๛]/.test(r.stderr), 'error เป็นภาษาไทย: ' + r.stderr.slice(0, 80));
+  assert(elapsed < 25_000, `fail ไวไม่ค้าง (${elapsed}ms < 25s)`);
+  rmSync(gtmp2, { recursive: true, force: true });
+} catch (e) {
+  assert(false, 'git-env tests รันจบ: ' + String(e && e.message).slice(0, 300));
+}
+
+console.log('[smoke] start.mjs: orchestration (server+worker พร้อมกัน) …');
+try {
+  const port = 3210;
+  const child = spawn(process.execPath, [join(ROOT, 'scripts', 'start.mjs')], {
+    cwd: ROOT,
+    env: { ...process.env, PORT: String(port), LABELPRO_DB: join(tmp, 'start-e2e.db') },
+  });
+  let out = '';
+  child.stdout.on('data', (d) => { out += d.toString(); });
+  child.stderr.on('data', (d) => { out += d.toString(); });
+  let ok = false;
+  for (let i = 0; i < 15; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      const r = await fetch(`http://localhost:${port}/api/health`);
+      if (r.ok) { ok = true; break; }
+    } catch { /* ยังไม่พร้อม */ }
+  }
+  assert(ok, 'start.mjs สตาร์ท server จน /api/health ตอบ 200');
+  assert(out.includes('กำลังเริ่มระบบ'), 'start.mjs พิมพ์ banner เริ่มระบบ');
+  assert(out.includes('worker'), 'start.mjs สตาร์ท worker ด้วย');
+  child.kill('SIGTERM');
+  await new Promise((r) => setTimeout(r, 1500));
+  assert(child.killed || child.exitCode !== null || child.signalCode !== null, 'SIGTERM ปิด start.mjs ได้');
+} catch (e) {
+  assert(false, 'start.mjs orchestration: ' + String(e && e.message).slice(0, 300));
 }
 
 console.log('[smoke] backup --dry-run …');
