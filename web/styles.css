@@ -50,12 +50,12 @@ body{font-family:'Sarabun',system-ui,sans-serif; background:var(--bg); color:var
 
 /* ── search ── */
 .searchbox{display:flex; gap:10px; margin-bottom:12px}
-.searchbox input, .toolbar input, .field input, .field textarea{border:2px solid var(--line); border-radius:12px; padding:13px 16px; font-size:16px; font-family:inherit; background:#fff; color:var(--ink)}
+.searchbox input, .toolbar input, .field input, .field textarea, .field select{border:2px solid var(--line); border-radius:12px; padding:13px 16px; font-size:16px; font-family:inherit; background:#fff; color:var(--ink)}
 .searchbox input{flex:1}
-.searchbox input:focus, .toolbar input:focus, .field input:focus, .field textarea:focus{outline:none; border-color:var(--accent)}
+.searchbox input:focus, .toolbar input:focus, .field input:focus, .field textarea:focus, .field select:focus{outline:none; border-color:var(--accent)}
 .field{margin-top:14px}
 .field label{font-size:13px; color:var(--muted); display:block; margin-bottom:6px}
-.field input, .field textarea{width:100%; font-size:15px; padding:11px 14px}
+.field input, .field textarea, .field select{width:100%; font-size:15px; padding:11px 14px}
 .field textarea{resize:vertical}
 .fhint{font-weight:400; color:var(--muted)}
 .results{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:14px}
