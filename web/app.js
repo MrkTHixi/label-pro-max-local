@@ -477,19 +477,6 @@ $('backupFile').addEventListener('change',async(event)=>{
     toast(`นำเข้าลูกค้า ${result.imported} รายแล้ว`);location.reload();
   }catch(error){toast(error.message,true);}finally{button.disabled=false;}
 });
-$('downloadBackup').addEventListener('click',async()=>{
-  const button=$('downloadBackup');button.disabled=true;
-  toast('กำลังดาวน์โหลดผ่าน SSH ของเครื่องนี้…');
-  try{
-    const response=await fetch('/api/backup/download',{method:'POST'});
-    if(!response.ok){const error=await response.json();throw new Error(error.message||'ดาวน์โหลดไม่สำเร็จ');}
-    const blob=await response.blob();const url=URL.createObjectURL(blob);
-    const link=document.createElement('a');link.href=url;
-    link.download=response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]||'backup.sql.gz';
-    link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
-    toast('ดาวน์โหลดไฟล์สำรองแล้ว ยังไม่ได้กู้คืนข้อมูล');
-  }catch(error){toast(error.message,true);}finally{button.disabled=false;}
-});
 $('backupNow').addEventListener('click', async () => {
   const r = await api.post('/api/backup');
   toast(r.ok ? '💾 เริ่มสำรองข้อมูลเบื้องหลังแล้ว' : '❌ สั่งสำรองไม่สำเร็จ', !r.ok);
