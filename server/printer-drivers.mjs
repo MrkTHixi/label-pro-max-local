@@ -58,9 +58,29 @@ export function resolvePrinterName() {
   const fromDb = String(getSetting('printer_name') || '').trim();
   if (fromDb) return fromDb;
   throw new Error(
-    'ยังไม่ได้ตั้งชื่อเครื่องพิมพ์ — เปิดหน้า "ตั้งค่า" แล้วกรอกชื่อเครื่องพิมพ์ให้ตรงกับใน ' +
-    'Control Panel → Devices and Printers (เช่น Grozziie TP518) หรือตั้ง env PRINTER_NAME'
+    'ยังไม่ได้ตั้งชื่อเครื่องพิมพ์ — เปิดหน้า "ตั้งค่า" แล้วเลือกจากรายการเครื่องพิมพ์ ' +
+    '(หรือตั้ง env PRINTER_NAME)'
   );
+}
+
+// แปลง error ตอนสั่งพิมพ์เป็นข้อความภาษาไทยพร้อมวิธีแก้
+// (worker เก็บข้อความนี้ลงคอลัมน์ error → โชว์ในหน้าคิวงาน)
+// export ไว้ให้ smoke test เรียกตรง ๆ
+export function mapPrintFailure(printerName, fname, rawErr) {
+  const raw = String(rawErr?.message ?? rawErr ?? '');
+  const low = raw.toLowerCase();
+  const nameMentioned = printerName && low.includes(String(printerName).toLowerCase());
+  const looksLikeBadName = /not found|invalid|cannot find|could not find|no printer|unknown printer|failed to (open|find)/i.test(raw);
+  const spoolerDead = /enoent|spawn|econnrefused|eacces/i.test(low);
+  let hint;
+  if (nameMentioned || looksLikeBadName) {
+    hint = `ชื่อเครื่องพิมพ์ไม่ตรง — เปิดหน้า "ตั้งค่า" แล้วเลือกจากรายการ (ตอนนี้ตั้งไว้ว่า "${printerName}")`;
+  } else if (spoolerDead) {
+    hint = 'ติดต่อตัวสั่งพิมพ์ไม่ได้ — เช็กว่าเครื่องพิมพ์เสียบสาย/เปิดอยู่ แล้วกด "พิมพ์ซ้ำ" ในหน้าคิวงาน';
+  } else {
+    hint = 'เช็กว่าเครื่องพิมพ์เปิดอยู่ กระดาษไม่ติด แล้วกด "พิมพ์ซ้ำ" ในหน้าคิวงาน';
+  }
+  return `สั่งพิมพ์ไป "${printerName}" ไม่สำเร็จ (เก็บไฟล์ ${fname} ไว้ตรวจสอบ)\n💡 ${hint}\nรายละเอียด: ${raw.slice(0, 400)}`;
 }
 
 export class WindowsPdfDriver {
@@ -90,8 +110,8 @@ export class WindowsPdfDriver {
       });
       rmSync(pdfPath, { force: true }); // สำเร็จแล้วลบไฟล์ temp
     } catch (e) {
-      // พิมพ์ล้มเหลว → เก็บ PDF ไว้ดู (debug) แล้วโยน error ให้ worker mark failed
-      throw new Error(`สั่งพิมพ์ไป "${printerName}" ไม่สำเร็จ (เก็บไฟล์ ${fname} ไว้ตรวจสอบ): ${e?.message || e}`);
+      // พิมพ์ล้มเหลว → เก็บ PDF ไว้ดู (debug) แล้วโยน error ภาษาไทยให้ worker mark failed
+      throw new Error(mapPrintFailure(printerName, fname, e));
     }
   }
 }

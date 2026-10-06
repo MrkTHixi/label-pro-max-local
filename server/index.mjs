@@ -175,6 +175,35 @@ app.put('/api/settings', (req, res) => {
   ok(res, {});
 });
 
+// ---------- รายการเครื่องพิมพ์ (Windows) ----------
+// ดึงชื่อเครื่องพิมพ์จริงจาก Windows spooler ให้ user เลือกใน dropdown
+// (กันพิมพ์ชื่อผิด — สาเหตุยอดฮิตของงาน failed)
+// ตอบ: { printers: ["ชื่อ1", ...] } — normalize เป็น array ของ string เสมอ ไม่เคย throw
+app.get('/api/printers', async (_req, res) => {
+  if (process.platform !== 'win32') return ok(res, { printers: [] }); // dev บน Linux/macOS
+  let getPrinters;
+  try {
+    // lazy import — pdf-to-printer เป็น optionalDependency เฉพาะ Windows, Linux ไม่โหลด
+    const mod = await import('pdf-to-printer');
+    getPrinters = mod.getPrinters || mod.default?.getPrinters;
+    if (typeof getPrinters !== 'function') throw new Error('no getPrinters export');
+  } catch {
+    return ok(res, { printers: [], error: 'ยังไม่ติดตั้ง pdf-to-printer — รัน `npm install` บนเครื่อง Windows นี้ก่อน' });
+  }
+  try {
+    const list = await getPrinters(); // [{ deviceId, name, paperSizes }]
+    const names = [...new Set(
+      (Array.isArray(list) ? list : [])
+        .map((p) => String(p && p.name ? p.name : '').trim())
+        .filter(Boolean)
+    )];
+    ok(res, { printers: names });
+  } catch (e) {
+    // หมายเหตุ: pdf-to-printer บางเวอร์ชัน throw เป็น string ("Operating System not supported") ไม่ใช่ Error
+    ok(res, { printers: [], error: 'อ่านรายการเครื่องพิมพ์ไม่สำเร็จ: ' + String(e?.message || e) });
+  }
+});
+
 // ---------- import Excel ----------
 // อัปโหลด .xlsx (ชีต PrintLabel, 4 คอลัมน์) → รัน scripts/import-excel.mjs กับไฟล์นั้น
 app.post('/api/import-excel', upload.single('file'), (req, res) => {

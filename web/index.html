@@ -114,8 +114,13 @@
       <h2>🏷️ สาขา & สำรองข้อมูล</h2>
       <div class="field"><label>ชื่อสาขา</label><input id="set_branch" placeholder="เช่น พัทยากลาง"></div>
       <div class="field"><label>ชื่อเครื่องพิมพ์ (Windows)</label>
-        <input id="set_printer" placeholder="เช่น Grozziie TP518">
-        <div class="sub" style="margin:4px 0 0">คัดลอกชื่อให้ตรงกับใน Control Panel → Devices and Printers เป๊ะ ๆ (worker จะใช้ชื่อนี้สั่งพิมพ์)</div></div>
+        <div class="btnrow" style="gap:6px">
+          <select id="set_printer" style="flex:1;min-width:0"></select>
+          <button class="btn btn-outline" id="refreshPrinters" type="button" title="โหลดรายการเครื่องพิมพ์ใหม่">🔄 รีเฟรช</button>
+        </div>
+        <div class="sub" style="margin:4px 0 0">เลือกให้ตรงกับชื่อใน Control Panel → Devices and Printers —
+          <a href="#" id="printerManualToggle" style="color:var(--link,#4da3ff)">พิมพ์ชื่อเอง</a></div>
+        <input id="set_printer_manual" placeholder="เช่น Grozziie TP518" style="display:none;margin-top:6px"></div>
       <div class="field"><label>Git repo สำหรับ backup (ว่างได้ = เก็บในเครื่องอย่างเดียว)</label>
         <input id="set_backup_url" placeholder="https://github.com/ORG/labelpro-backup-pattaya.git"></div>
       <div class="sub" style="margin-top:2px">💾 สำรองข้อมูลลง git <b>อัตโนมัติเมื่อเพิ่มลูกค้าใหม่</b> หรือกดปุ่มด้านล่าง — ไม่สำรองตามเวลา</div>
