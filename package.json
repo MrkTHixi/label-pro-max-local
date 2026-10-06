@@ -8,7 +8,7 @@
     "playwright": "^1.63.0",
     "xlsx": "^0.18.5"
   },
-  "description": "Local-first label printing system for Thai parcel labels (100x150mm). No cloud, no sync โ€” each branch PC runs everything locally.",
+  "description": "Local-first label printing system for Thai parcel labels (100x150mm). Each branch PC runs everything locally.",
   "engines": {
     "node": ">=22"
   },
