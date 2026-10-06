@@ -60,7 +60,7 @@ async function loadFavorites() {
   if(sequence!==favoritesSequence||generation!==dataGeneration)return;
   const box=$('favorites');
   if(!d.ok){box.textContent='โหลดรายการปักหมุดไม่สำเร็จ';return;}
-  box.innerHTML=d.customers.length?d.customers.map(c=>`<div class="cust" data-id="${c.id}">${starButton(c)}<b>${esc(c.attention_name||c.place_name)}</b><span class="who">${esc(c.place_name)}</span><button class="pbtn" title="เปิดตัวเลือกพิมพ์">🖨️</button></div>`).join(''):'<div class="sub">กดดาวข้างชื่อลูกค้าเพื่อปักหมุด · ดับเบิลคลิกเพื่อเปิดตัวเลือกพิมพ์</div>';
+  box.innerHTML=d.customers.length?d.customers.map(c=>`<div class="cust" data-id="${c.id}" title="ดับเบิลคลิกเพื่อเปิดตัวเลือกพิมพ์">${starButton(c)}<b>${esc(c.place_name)}</b><button class="pbtn" title="เปิดตัวเลือกพิมพ์">🖨️</button></div>`).join(''):'<div class="sub">กดดาวข้างชื่อลูกค้าเพื่อปักหมุด · ดับเบิลคลิกเพื่อเปิดตัวเลือกพิมพ์</div>';
   box.querySelectorAll('.cust').forEach(el=>bindCustomer(el,d.customers.find(c=>c.id===Number(el.dataset.id))));
 }
 function bindCustomer(el,c) {

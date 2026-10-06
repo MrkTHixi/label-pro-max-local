@@ -13,7 +13,7 @@ html,body{margin:0;padding:0;background:white;color:black;font-family:LabelThai,
 .label-main .sender-name{font-weight:700}
 .label-main hr{border:0;border-top:0.4mm solid black;margin:2mm 3mm}
 .label-main .recipient{font-size:calc(16pt * var(--size));font-weight:700;margin-bottom:1mm}
-.label-main .place{font-size:calc(18pt * var(--size));font-weight:700;margin-bottom:1mm}
+.label-main .place{font-size:calc(13pt * var(--size));font-weight:700;margin-bottom:1mm}
 .label-main .attention{font-size:calc(13pt * var(--size));font-weight:700}
 .label-main .contact{margin-top:1mm}
 .label-error{color:#b42318;font-size:12pt;padding:5mm}
