@@ -70,6 +70,12 @@ try{
   await until(()=>database.prepare("SELECT COUNT(*) n FROM print_jobs WHERE status='failed'").get().n===0);
   const afterClear=await api(base,'/api/queue');
   check('เลือกทั้งหมดล้างงานล้มเหลวเกิน 50 งานและรักษายอด 77 ใบ',()=>{assert.equal(afterClear.failed_ids.length,0);assert.equal(afterClear.stats.done_copies_total,77);assert.equal(database.prepare('SELECT COUNT(*) n FROM print_jobs').get().n,76);});
+  const cancelledId=Number(database.prepare("INSERT INTO print_jobs(status,copies) VALUES('cancelled',2)").run().lastInsertRowid);
+  await page.reload();await page.locator('[data-view="queue"]').click();
+  await page.locator(`.failed-job-select[data-id="${cancelledId}"]`).check();
+  page.once('dialog',dialog=>dialog.accept());await page.locator('#clearFailedJobs').click();
+  await until(()=>!database.prepare('SELECT id FROM print_jobs WHERE id=?').get(cancelledId));
+  check('ล้างงานยกเลิกจาก UI และรักษางานสำเร็จ',()=>assert.equal(database.prepare('SELECT COUNT(*) n FROM print_jobs').get().n,76));
   await page.goto(base);await page.locator('#results .cust').first().waitFor();
   await page.locator('#results .cust').first().click();
   await page.frameLocator('#labelPreview').locator('.place').waitFor();

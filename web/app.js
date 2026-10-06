@@ -224,7 +224,7 @@ const selectedFailedJobs=new Set();
 let failedJobIds=[],clearFailedBusy=false;
 function updateFailedSelection(){
   const count=selectedFailedJobs.size;
-  $('failedSelectionCount').textContent=`เลือก ${count} งาน จากงานล้มเหลว ${failedJobIds.length} งาน`;
+  $('failedSelectionCount').textContent=`เลือก ${count} งาน จากงานล้มเหลว/ยกเลิก ${failedJobIds.length} งาน`;
   $('clearFailedJobs').disabled=!count||clearFailedBusy;
   $('selectAllFailed').disabled=!failedJobIds.length||clearFailedBusy;
   $('selectAllFailed').checked=!!failedJobIds.length&&count===failedJobIds.length;
@@ -239,11 +239,11 @@ $('selectAllFailed').addEventListener('change',()=>{
 $('clearFailedJobs').addEventListener('click',async()=>{
   if(clearFailedBusy||!selectedFailedJobs.size)return;
   const ids=[...selectedFailedJobs];
-  if(!confirm(`ลบประวัติงานล้มเหลวที่เลือก ${ids.length} งานถาวร?\nงานสำเร็จ งานรอพิมพ์ และยอดรวมจำนวนใบจะยังอยู่`))return;
+  if(!confirm(`ลบประวัติงานล้มเหลวหรือยกเลิกที่เลือก ${ids.length} งานถาวร?\nงานสำเร็จ งานรอพิมพ์ และยอดรวมจำนวนใบจะยังอยู่`))return;
   clearFailedBusy=true;updateFailedSelection();
   const result=await api.post('/api/queue/clear-failed',{ids,confirmation:'ล้างงานล้มเหลว'});
   clearFailedBusy=false;
-  if(result.ok){selectedFailedJobs.clear();toast(`ล้างงานล้มเหลว ${result.deleted} งานแล้ว`);}
+  if(result.ok){selectedFailedJobs.clear();toast(`ล้างงานล้มเหลว/ยกเลิก ${result.deleted} งานแล้ว`);}
   else toast(result.message,true);
   await loadQueue();loadQueueBadge();
 });
@@ -255,7 +255,7 @@ async function loadQueue() {
   $('stDone').textContent = d.stats.done_today;
   $('stFail').textContent = d.stats.failed;
   $('stTotalCopies').textContent = Number(d.stats.done_copies_total||0).toLocaleString('th-TH');
-  failedJobIds=d.failed_ids||[];
+  failedJobIds=d.clearable_ids||d.failed_ids||[];
   for(const id of selectedFailedJobs)if(!failedJobIds.includes(id))selectedFailedJobs.delete(id);
   updateFailedSelection();
   if (!d.jobs.length) {
@@ -270,7 +270,7 @@ async function loadQueue() {
     if (j.status === 'queued') acts.push(`<button class="mini" data-act="cancel" data-id="${j.id}">ยกเลิก</button>`);
     if (j.status === 'done' || j.status === 'failed' || j.status === 'cancelled') acts.push(`<button class="mini" data-act="reprint" data-id="${j.id}">พิมพ์ซ้ำ</button>`);
     return `<tr>
-      <td>${j.status==='failed'?`<input type="checkbox" class="failed-job-select" data-id="${j.id}" aria-label="เลือกงานล้มเหลว ${j.id}" ${selectedFailedJobs.has(j.id)?'checked':''}>`:'—'}</td>
+      <td>${['failed','cancelled'].includes(j.status)?`<input type="checkbox" class="failed-job-select" data-id="${j.id}" aria-label="เลือกงาน ${j.id}" ${selectedFailedJobs.has(j.id)?'checked':''}>`:'—'}</td>
       <td style="white-space:nowrap">${esc(time)}</td>
       <td><b>📍 ${esc(j.place_name || '')}</b><br><span class="muted" style="font-size:12.5px">${esc(j.attention_name || '')}</span></td>
       <td>${esc(j.message || '—')}</td>

@@ -202,19 +202,20 @@ app.get('/api/queue', (_req, res) => {
     COALESCE(SUM(status='done' AND date(printed_at,'+7 hours')=date('now','+7 hours')),0) done_today
     FROM print_jobs`).get();
   const failed_ids = db.prepare("SELECT id FROM print_jobs WHERE status='failed' ORDER BY id").all().map(row=>row.id);
-  ok(res, { jobs: rows, stats, failed_ids });
+  const clearable_ids=db.prepare("SELECT id FROM print_jobs WHERE status IN ('failed','cancelled') ORDER BY id").all().map(row=>row.id);
+  ok(res, { jobs: rows, stats, failed_ids, clearable_ids });
 });
 
 app.post('/api/queue/clear-failed', (req,res) => {
   if (req.body?.confirmation !== 'ล้างงานล้มเหลว') return err(res,400,'กรุณายืนยันล้างงานล้มเหลว');
   const ids=req.body?.ids;
-  if (!Array.isArray(ids) || !ids.length || ids.some(id=>!Number.isSafeInteger(id)||id<1) || new Set(ids).size!==ids.length) return err(res,400,'กรุณาเลือกรายการงานล้มเหลวให้ถูกต้อง');
+  if (!Array.isArray(ids) || !ids.length || ids.some(id=>!Number.isSafeInteger(id)||id<1) || new Set(ids).size!==ids.length) return err(res,400,'กรุณาเลือกงานล้มเหลวหรือยกเลิกให้ถูกต้อง');
   if(clearing || updating) return err(res,409,'ระบบกำลังจัดการข้อมูล กรุณารอสักครู่');
   try {
     const deleted=db.transaction(()=>{
       const status=db.prepare('SELECT status FROM print_jobs WHERE id=?');
-      if(ids.some(id=>status.get(id)?.status!=='failed')) throw new Error('รายการเปลี่ยนแล้ว กรุณาเลือกงานล้มเหลวอีกครั้ง');
-      const remove=db.prepare("DELETE FROM print_jobs WHERE id=? AND status='failed'");
+      if(ids.some(id=>!['failed','cancelled'].includes(status.get(id)?.status))) throw new Error('รายการเปลี่ยนแล้ว กรุณาเลือกงานล้มเหลวหรือยกเลิกอีกครั้ง');
+      const remove=db.prepare("DELETE FROM print_jobs WHERE id=? AND status IN ('failed','cancelled')");
       return ids.reduce((count,id)=>count+remove.run(id).changes,0);
     }).immediate();
     ok(res,{deleted});
