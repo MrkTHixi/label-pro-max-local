@@ -1,6 +1,7 @@
 // server/index.mjs — Label Pro Max Local web server
 // รัน: npm start  →  http://localhost:3000
 import express from 'express';
+import { readCustomerBackup,replaceCustomers } from './customer-transfer.mjs';
 import { downloadGithubBackup } from './github-backup.mjs';
 import multer from 'multer';
 import { spawn, execFile } from 'node:child_process';
@@ -326,6 +327,27 @@ function runDetached(script, args = []) {
   child.on('error', (error) => console.error('[background]', error.message));
   child.unref();
 }
+
+app.post('/api/backup/export',async(_req,res)=>{
+  try{
+    const file=await createLocalBackup(db,undefined,'transfer');
+    res.download(file,basename(file));
+  }catch(error){err(res,500,'สร้างไฟล์สำรองไม่สำเร็จ: '+error.message);}
+});
+app.post('/api/customers/import-backup',upload.single('file'),async(req,res)=>{
+  let ownsLock=false;
+  try{
+    if(req.body?.confirmation!=='นำเข้าลูกค้า')return err(res,400,'กรุณายืนยันการแทนรายชื่อลูกค้า');
+    if(!req.file||!req.file.originalname.toLowerCase().endsWith('.db'))return err(res,400,'กรุณาเลือกไฟล์สำรอง .db');
+    if(clearing||updating||importing||db.prepare("SELECT 1 FROM print_jobs WHERE status IN ('queued','printing')").get())return err(res,409,'กรุณารอการจัดการข้อมูลและคิวพิมพ์ก่อนนำเข้า');
+    clearing=true;ownsLock=true;
+    const rows=readCustomerBackup(req.file.path);
+    const backup=await createLocalBackup(db,undefined,'before-import-customers');
+    const imported=replaceCustomers(db,rows);
+    ok(res,{imported,backup:basename(backup)});
+  }catch(error){err(res,400,'ไม่ได้นำเข้าข้อมูล: '+error.message);}
+  finally{if(ownsLock)clearing=false;if(req.file)await rm(req.file.path,{force:true}).catch(()=>{});}
+});
 
 let downloadingBackup=false;
 app.post('/api/backup/download', async (_req,res)=>{

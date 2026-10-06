@@ -178,6 +178,29 @@ try{
   old.prepare('INSERT INTO customers(place_name,customer_name,address,phone) VALUES(?,?,?,?)').run('บ้านเก่า','คุณเก่า','ที่อยู่เก่า','0800000000');old.close();
   execFileSync(process.execPath,['--input-type=module','-e',`const {db}=await import(${JSON.stringify(pathToFileURL(join(ROOT,'server','db.mjs')).href)});db.close();`],{cwd:ROOT,env:{...process.env,LABELPRO_DB:legacy},windowsHide:true});
   const migrated=new Database(legacy,{readonly:true});check('migration ไม่ทิ้งลูกค้าเก่า',()=>{const row=migrated.prepare('SELECT * FROM customers').get();assert.equal(row.attention_name,'คุณเก่า');assert.equal(row.contact,'0800000000');});migrated.close();
+  const transferPort=await freePort();const transferBase=`http://127.0.0.1:${transferPort}`;
+  const transferServer=child('server/index.mjs',{PORT:String(transferPort)});
+  await until(async()=>{try{return(await api(transferBase,'/api/health')).ok;}catch{return false;}});
+  const exported=await fetch(transferBase+'/api/backup/export',{method:'POST'});
+  assert.equal(exported.status,200);const transferFile=join(scratch,'transfer.db');
+  writeFileSync(transferFile,Buffer.from(await exported.arrayBuffer()));
+  const transferCheck=new Database(transferFile,{readonly:true});
+  check('ดาวน์โหลด DB จากแอปมีรายชื่อลูกค้าครบ',()=>assert.equal(transferCheck.prepare('SELECT COUNT(*) n FROM customers').get().n,3));transferCheck.close();
+  async function uploadBackup(bytes,confirmation='นำเข้าลูกค้า'){
+    const form=new FormData();form.append('file',new Blob([bytes]),'backup.db');form.append('confirmation',confirmation);
+    const response=await fetch(transferBase+'/api/customers/import-backup',{method:'POST',body:form});return {status:response.status,...await response.json()};
+  }
+  const rejected=await uploadBackup(readFileSync(transferFile),'wrong');
+  check('ไม่ยืนยันนำเข้าแล้วข้อมูลเดิมอยู่ครบ',()=>{assert.equal(rejected.status,400);assert.equal(database.prepare('SELECT COUNT(*) n FROM customers').get().n,3);});
+  const invalid=await uploadBackup(Buffer.from('invalid backup'));
+  check('ไฟล์เสียไม่แทนข้อมูลลูกค้า',()=>{assert.equal(invalid.status,400);assert.equal(database.prepare('SELECT COUNT(*) n FROM customers').get().n,3);});
+  const jobsBefore=database.prepare('SELECT COUNT(*) n FROM print_jobs').get().n;
+  const senderBefore=database.prepare('SELECT * FROM sender_profile').get();
+  const imported=await uploadBackup(readFileSync(join(scratch,'backups',backupFile)));
+  check('อัปโหลดสำรองจากแอปแทนลูกค้าครบและรักษาผู้ส่งกับประวัติ',()=>{assert.equal(imported.imported,302);assert.equal(database.prepare('SELECT COUNT(*) n FROM customers').get().n,302);assert.equal(database.prepare('SELECT COUNT(*) n FROM print_jobs').get().n,jobsBefore);assert.deepEqual(database.prepare('SELECT * FROM sender_profile').get(),senderBefore);assert(existsSync(join(scratch,'backups',imported.backup)));});
+  const beforeImportDb=new Database(join(scratch,'backups',imported.backup),{readonly:true});
+  check('สำรองก่อนนำเข้ามีลูกค้าเดิมครบ',()=>assert.equal(beforeImportDb.prepare('SELECT COUNT(*) n FROM customers').get().n,3));beforeImportDb.close();
+  await stopChild(transferServer);
   console.log(`ผ่าน ${count} กลุ่มตรวจสอบ — ข้อมูลจริงและเครื่องพิมพ์จริงไม่ถูกใช้`);
 }catch(error){console.error(error.stack);for(const c of children)if(c.logs)console.error(c.logs.slice(-2000));process.exitCode=1;}
 finally{

@@ -455,6 +455,28 @@ $('saveSettings').addEventListener('click', async () => {
   if (r.ok) { toast('💾 บันทึกตั้งค่าแล้ว'); loadBranch(); }
   else toast('❌ ' + r.message, true);
 });
+$('exportBackup').addEventListener('click',async()=>{
+  const button=$('exportBackup');button.disabled=true;
+  try{
+    const response=await fetch('/api/backup/export',{method:'POST'});
+    if(!response.ok){const error=await response.json();throw new Error(error.message);}
+    const url=URL.createObjectURL(await response.blob());const link=document.createElement('a');
+    link.href=url;link.download=response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]||'backup.db';
+    link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('ส่งไฟล์ .db นี้ให้อีกเครื่องแล้วนำเข้าได้เลย');
+  }catch(error){toast(error.message,true);}finally{button.disabled=false;}
+});
+$('importBackup').addEventListener('click',()=>$('backupFile').click());
+$('backupFile').addEventListener('change',async(event)=>{
+  const file=event.target.files[0];event.target.value='';if(!file)return;
+  if(!confirm('แทนรายชื่อลูกค้าทั้งหมดด้วยข้อมูลในไฟล์นี้? ระบบจะสำรองข้อมูลเดิมก่อนนำเข้า\nดาวที่ปักหมุดจะตามไฟล์มา ผู้ส่ง การตั้งค่า และประวัติพิมพ์บนเครื่องนี้ยังคงอยู่'))return;
+  const button=$('importBackup');button.disabled=true;
+  try{
+    const form=new FormData();form.append('file',file);form.append('confirmation','นำเข้าลูกค้า');
+    const response=await fetch('/api/customers/import-backup',{method:'POST',body:form});const result=await response.json();
+    if(!result.ok)throw new Error(result.message);
+    toast(`นำเข้าลูกค้า ${result.imported} รายแล้ว`);location.reload();
+  }catch(error){toast(error.message,true);}finally{button.disabled=false;}
+});
 $('downloadBackup').addEventListener('click',async()=>{
   const button=$('downloadBackup');button.disabled=true;
   toast('กำลังดาวน์โหลดผ่าน SSH ของเครื่องนี้…');
