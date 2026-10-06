@@ -222,7 +222,7 @@ async function loadQueue() {
       <td>${esc(j.message || '—')}</td>
       <td>${j.copies} ใบ</td>
       <td>${esc(j.printed_by || '—')}</td>
-      <td><span class="pill ${cls}">${label}</span>${j.status === 'failed' && j.error ? `<div class="muted" style="font-size:12px">${esc(j.error)}</div>` : ''}</td>
+      <td><span class="pill ${cls}">${label}</span>${j.status === 'failed' && j.error ? `<div class="muted" style="font-size:12px;white-space:pre-line;word-break:break-word">${esc(j.error)}</div>` : ''}</td>
       <td style="white-space:nowrap">${acts.join('')}</td>
     </tr>`;
   }).join('');
@@ -347,12 +347,59 @@ $('importFile').addEventListener('change', async (e) => {
 });
 
 // ---------- ตั้งค่า ----------
+async function loadPrinterList(preselect) {
+  const sel = $('set_printer');
+  sel.innerHTML = '<option value="">— กำลังโหลด —</option>';
+  let names = [];
+  try {
+    const d = await api.get('/api/printers');
+    if (d && d.ok && Array.isArray(d.printers)) names = d.printers;
+    else if (d && d.error) toast('⚠️ ' + d.error, true);
+  } catch { /* เซิร์ฟเวอร์ไม่ตอบ — ให้ user พิมพ์ชื่อเอง */ }
+  if (!names.length) {
+    sel.innerHTML = '<option value="">(ไม่พบเครื่องพิมพ์ — กด "พิมพ์ชื่อเอง" ด้านล่าง)</option>';
+  } else {
+    sel.innerHTML = '<option value="">— เลือกเครื่องพิมพ์ —</option>' +
+      names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  }
+  if (preselect) {
+    // ค่าที่บันทึกไว้ (อาจเป็นชื่อที่พิมพ์เอง) → เก็บเป็น option เสริมกันค่าหาย
+    if (![...sel.options].some((o) => o.value === preselect)) {
+      const o = document.createElement('option');
+      o.value = preselect;
+      o.textContent = preselect + ' (ค่าที่บันทึกไว้)';
+      sel.appendChild(o);
+    }
+    sel.value = preselect;
+  }
+}
+// ชื่อ printer ที่จะบันทึก: ช่องพิมพ์เอง (ถ้าเปิดอยู่และมีค่า) ไม่งั้นค่าจาก dropdown
+function currentPrinterValue() {
+  const m = $('set_printer_manual');
+  if (m.style.display !== 'none' && m.value.trim()) return m.value.trim();
+  return $('set_printer').value.trim();
+}
+$('refreshPrinters').addEventListener('click', async () => {
+  await loadPrinterList(currentPrinterValue());
+  toast('🔄 โหลดรายการเครื่องพิมพ์ใหม่แล้ว');
+});
+$('printerManualToggle').addEventListener('click', (e) => {
+  e.preventDefault();
+  const m = $('set_printer_manual');
+  const show = m.style.display === 'none';
+  m.style.display = show ? '' : 'none';
+  e.target.textContent = show ? 'ซ่อนช่องพิมพ์เอง' : 'พิมพ์ชื่อเอง';
+  if (show) m.focus();
+});
 async function loadSettings() {
   const d = await api.get('/api/settings');
   if (!d.ok) return;
   $('set_branch').value = d.settings.branch_name || '';
   $('set_backup_url').value = d.settings.backup_repo_url || '';
-  $('set_printer').value = d.settings.printer_name || '';
+  $('set_printer_manual').value = '';
+  $('set_printer_manual').style.display = 'none';
+  $('printerManualToggle').textContent = 'พิมพ์ชื่อเอง';
+  await loadPrinterList(d.settings.printer_name || '');
   const s = await api.get('/api/sender');
   if (s.ok) {
     $('s_name').value = s.sender.sender_name || '';
@@ -383,7 +430,7 @@ $('saveSettings').addEventListener('click', async () => {
   const r = await api.put('/api/settings', {
     branch_name: $('set_branch').value,
     backup_repo_url: $('set_backup_url').value.trim(),
-    printer_name: $('set_printer').value.trim(),
+    printer_name: currentPrinterValue(),
   });
   if (r.ok) { toast('💾 บันทึกตั้งค่าแล้ว'); loadBranch(); }
   else toast('❌ ' + r.message, true);
