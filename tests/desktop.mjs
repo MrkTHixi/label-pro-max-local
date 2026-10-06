@@ -18,7 +18,7 @@ try {
   const ps=`$s=New-Object -ComObject WScript.Shell; @($s.CreateShortcut($env:TEST_DESKTOP),$s.CreateShortcut($env:TEST_STARTUP)) | Select-Object TargetPath,Arguments,IconLocation,WorkingDirectory | ConvertTo-Json`;
   const links=JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',ps],{env:{...process.env,TEST_DESKTOP:join(desktop,'LabelPro Local.lnk'),TEST_STARTUP:join(startup,'LabelPro Local.lnk')},encoding:'utf8',windowsHide:true}));
   assert(links.every(x=>x.TargetPath.toLowerCase().endsWith('wscript.exe')));
-  assert(links.every(x=>x.IconLocation.endsWith('labelpro.ico,0')));
+  assert(links.every(x=>x.IconLocation.endsWith('labelpro-transparent.ico,0')));
   assert(links[1].Arguments.endsWith('/startup'));
   assert(links.every(x=>x.WorkingDirectory.toLowerCase()===resolve('.').toLowerCase()));
   console.log('Desktop and startup shortcuts verified in isolated folders; hidden launcher and current logo selected.');

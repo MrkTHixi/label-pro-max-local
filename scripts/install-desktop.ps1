@@ -10,7 +10,7 @@ $desktop=$shell.CreateShortcut((Join-Path $DesktopDir 'LabelPro Local.lnk'))
 $desktop.TargetPath=$wscript
 $desktop.Arguments='"'+(Join-Path $projectRoot 'start-labelpro.vbs')+'"'
 $desktop.WorkingDirectory=$projectRoot
-$desktop.IconLocation=(Join-Path $projectRoot 'web\icons\labelpro.ico')+',0'
+$desktop.IconLocation=(Join-Path $projectRoot 'web\icons\labelpro-transparent.ico')+',0'
 $desktop.Description='LabelPro Local'
 $desktop.Save()
 $startup=$shell.CreateShortcut((Join-Path $StartupDir 'LabelPro Local.lnk'))
