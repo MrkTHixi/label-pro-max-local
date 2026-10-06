@@ -24,3 +24,5 @@ jobs:
       - run: npm run smoke
       - if: runner.os == 'Windows'
         run: npm run test:windows
+      - if: runner.os == 'Windows'
+        run: node tests/desktop.mjs

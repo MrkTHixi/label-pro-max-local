@@ -162,6 +162,10 @@ td{padding:12px 16px; border-top:1px solid var(--line); vertical-align:top}
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
 .toast.err{background:var(--red)}
 
+.favorites{display:grid;gap:8px;margin-bottom:16px;max-height:320px;overflow:auto}
+.starbtn{cursor:pointer;border:0;background:transparent;color:#a66b00;font-size:25px;position:absolute;right:50px;top:10px;padding:0 8px;min-width:40px}
+.cust .place,.favorites .cust b{padding-right:80px;display:block}
+.starbtn:focus-visible{outline:2px solid var(--amber)}
 @media(max-width:1100px){ .grid2s{grid-template-columns:1fr 1fr} }
 @media(max-width:900px){
   .grid2,.grid2s{grid-template-columns:1fr}

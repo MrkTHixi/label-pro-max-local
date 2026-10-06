@@ -46,6 +46,29 @@ let selectedCustomer = null;
 let senderPreview = {}, dataGeneration = 0, searchSequence = 0, listSequence = 0;
 
 let searchTimer;
+let favoritesSequence=0;
+function starButton(c) { return `<button class="starbtn" aria-label="${c.is_favorite?'เลิกปักหมุด':'ปักหมุด'} ${esc(c.place_name)}" aria-pressed="${!!c.is_favorite}" title="ปักหมุดที่อยู่ที่ใช้บ่อย">${c.is_favorite?'★':'☆'}</button>`; }
+async function toggleFavorite(c,button) {
+  button.disabled=true;
+  const result=await api.put(`/api/customers/${c.id}/favorite`,{favorite:!c.is_favorite});
+  if(!result.ok){button.disabled=false;toast(result.message,true);return;}
+  await Promise.all([loadFavorites(),searchCustomers($('q').value),loadCustomers()]);
+}
+async function loadFavorites() {
+  const sequence=++favoritesSequence,generation=dataGeneration;
+  const d=await api.get('/api/customers/favorites');
+  if(sequence!==favoritesSequence||generation!==dataGeneration)return;
+  const box=$('favorites');
+  if(!d.ok){box.textContent='โหลดรายการปักหมุดไม่สำเร็จ';return;}
+  box.innerHTML=d.customers.length?d.customers.map(c=>`<div class="cust" data-id="${c.id}">${starButton(c)}<b>${esc(c.attention_name||c.place_name)}</b><span class="who">${esc(c.place_name)}</span><button class="pbtn" title="เปิดตัวเลือกพิมพ์">🖨️</button></div>`).join(''):'<div class="sub">กดดาวข้างชื่อลูกค้าเพื่อปักหมุด · ดับเบิลคลิกเพื่อเปิดตัวเลือกพิมพ์</div>';
+  box.querySelectorAll('.cust').forEach(el=>bindCustomer(el,d.customers.find(c=>c.id===Number(el.dataset.id))));
+}
+function bindCustomer(el,c) {
+  el.addEventListener('click',e=>{if(!e.target.closest('button'))selectCustomer(c);});
+  el.addEventListener('dblclick',e=>{if(!e.target.closest('button'))openPrintModal(c);});
+  el.querySelector('.pbtn').addEventListener('click',e=>{e.stopPropagation();openPrintModal(c);});
+  el.querySelector('.starbtn').addEventListener('click',e=>{e.stopPropagation();toggleFavorite(c,e.currentTarget);});
+}
 $('q').addEventListener('input', (e) => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => searchCustomers(e.target.value), 250);
@@ -64,6 +87,7 @@ async function searchCustomers(q) {
   }
   box.innerHTML = d.customers.map((c) => `
     <div class="cust" data-id="${c.id}">
+      ${starButton(c)}
       <button class="pbtn" title="สั่งพิมพ์ (จอสัมผัส)">🖨️</button>
       <span class="place">📍 ${esc(c.place_name)}</span>
       <span class="who">${esc(c.attention_name || '')}${c.contact ? ' · ' + esc(c.contact) : ''}</span>
@@ -72,12 +96,7 @@ async function searchCustomers(q) {
   box.querySelectorAll('.cust').forEach((el) => {
     const id = Number(el.dataset.id);
     const c = d.customers.find((x) => x.id === id);
-    el.addEventListener('click', (e) => {
-      if (e.target.classList.contains('pbtn')) return;
-      selectCustomer(c);
-    });
-    el.addEventListener('dblclick', () => openPrintModal(c));
-    el.querySelector('.pbtn').addEventListener('click', (e) => { e.stopPropagation(); openPrintModal(c); });
+    bindCustomer(el,c);
   });
 }
 
@@ -281,6 +300,7 @@ async function loadCustomers() {
     <td>${esc(c.address || '—')}</td>
     <td>${esc(c.contact || '—')}</td>
     <td style="white-space:nowrap">
+      <button class="mini" data-act="favorite" data-id="${c.id}" aria-pressed="${!!c.is_favorite}" title="ปักหมุดที่อยู่ที่ใช้บ่อย">${c.is_favorite?'★':'☆'}</button>
       <button class="mini" data-act="print" data-id="${c.id}">🖨️</button>
       <button class="mini" data-act="edit" data-id="${c.id}">✏️</button>
       <button class="mini" data-act="del" data-id="${c.id}">🗑️</button>
@@ -288,12 +308,13 @@ async function loadCustomers() {
   tb.querySelectorAll('[data-act]').forEach((b) => {
     const id = Number(b.dataset.id);
     const c = d.customers.find((x) => x.id === id);
+    if (b.dataset.act === 'favorite') b.addEventListener('click', () => toggleFavorite(c,b));
     if (b.dataset.act === 'edit') b.addEventListener('click', () => openCustModal(c));
     if (b.dataset.act === 'print') b.addEventListener('click', () => openPrintModal(c));
     if (b.dataset.act === 'del') b.addEventListener('click', async () => {
       if (!confirm(`ปิดใช้งาน “${c.place_name}”? (ข้อมูลไม่ถูกลบถาวร)`)) return;
       const r = await api.del('/api/customers/' + id);
-      if (r.ok) { toast('ปิดใช้งานแล้ว'); if(selectedCustomer?.id===c.id){ selectedCustomer=null; modalCustomer=null; updatePreview(null); } loadCustomers(); searchCustomers($('q').value); }
+      if (r.ok) { toast('ปิดใช้งานแล้ว'); if(selectedCustomer?.id===c.id){ selectedCustomer=null; modalCustomer=null; updatePreview(null); } loadFavorites(); loadCustomers(); searchCustomers($('q').value); }
       else toast('❌ ' + r.message, true);
     });
   });
@@ -327,7 +348,7 @@ $('custSave').addEventListener('click', async () => {
   if (!body.place_name) { toast('❌ กรุณากรอกชื่อสถานที่', true); return; }
   const id = $('c_id').value;
   const r = id ? await api.put('/api/customers/' + id, body) : await api.post('/api/customers', body);
-  if (r.ok) { closeCustModal(); toast('💾 บันทึกแล้ว'); loadCustomers(); searchCustomers($('q').value); }
+  if (r.ok) { closeCustModal(); toast('💾 บันทึกแล้ว'); loadFavorites(); loadCustomers(); searchCustomers($('q').value); }
   else toast('❌ ' + (r.message || 'บันทึกไม่สำเร็จ'), true);
 });
 
@@ -471,7 +492,7 @@ $('clearConfirm').addEventListener('click',async()=>{
   dataGeneration++; clearTimeout(searchTimer); clearTimeout(custTimer);
   selectedCustomer=null; modalCustomer=null; customersCache=[]; $('q').value=''; $('custQ').value='';
   closePrintModal(); closeCustModal(); closeClearModal(); updatePreview(null);
-  await Promise.all([loadCustomers(),searchCustomers('')]);
+  await Promise.all([loadCustomers(),searchCustomers(''),loadFavorites()]);
   toast(`ล้างลูกค้า ${result.deleted} รายแล้ว สำรองไว้ที่ backups/${result.backup}`);
 });
 
@@ -485,4 +506,10 @@ async function loadBranch() {
 loadBranch();
 loadSenderPreview();
 searchCustomers('');
+loadFavorites();
 loadQueueBadge();
+let installPrompt;
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installApp').classList.remove('hidden');});
+$('installApp').addEventListener('click',async()=>{if(!installPrompt)return;await installPrompt.prompt();installPrompt=null;$('installApp').classList.add('hidden');});
+$('installDesktop').addEventListener('click',async()=>{const button=$('installDesktop');button.disabled=true;const d=await api.post('/api/desktop/install');button.disabled=false;toast(d.message,!d.ok);});

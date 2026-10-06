@@ -21,6 +21,7 @@ db.transaction(() => {
       else db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} TEXT DEFAULT ''`);
     }
     if (table === 'customers') {
+      if (!cols.includes('is_favorite')) db.exec('ALTER TABLE customers ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
       if (!cols.includes('is_active')) db.exec('ALTER TABLE customers ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
       for (const name of ['created_at', 'updated_at']) {
         if (!cols.includes(name)) {

@@ -1,4 +1,4 @@
-param([switch]$Stop, [switch]$NoBrowser, [switch]$NoDialogs, [switch]$ForcePortableNode)
+param([switch]$Stop, [switch]$NoBrowser, [switch]$NoDialogs, [switch]$ForcePortableNode, [switch]$NoIntegration)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
@@ -58,8 +58,8 @@ try {
   $port = if ($env:PORT) { $env:PORT } else { '3000' }
   $pathHash = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($projectRoot + '|' + $logDir))).Replace('-','')
   $setupMutex = New-Object Threading.Mutex($false, "Local\LabelProLaunch-$pathHash")
-  try { $ownedMutex = $setupMutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $ownedMutex = $true }
-  if (-not $ownedMutex) { exit 0 }
+  try { $ownedMutex = $setupMutex.WaitOne(60000) } catch [Threading.AbandonedMutexException] { $ownedMutex = $true }
+  if (-not $ownedMutex) { throw 'LabelPro is still preparing. Please try the desktop shortcut again shortly.' }
   $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
   $nodePath = if ($nodeCommand -and -not $ForcePortableNode) { $nodeCommand.Source } else { $null }
   if ($nodePath) { $major = [int]((& $nodePath --version).TrimStart('v').Split('.')[0]); if ($major -lt 22) { $nodePath = $null } }
@@ -126,7 +126,13 @@ try {
     if (-not $NoDialogs -and $form) { [System.Windows.Forms.Application]::DoEvents() }
     Start-Sleep -Milliseconds 300
   } while ($true)
-  if (-not $NoBrowser) { Start-Process "http://localhost:$port" }
+  if (-not $NoIntegration -and -not $env:LABELPRO_DB) { & (Join-Path $PSScriptRoot 'install-desktop.ps1') }
+  if (-not $NoBrowser) {
+    $chromePaths=@((Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),(Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),(Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe'))
+    $chrome=$chromePaths|Where-Object {Test-Path -LiteralPath $_}|Select-Object -First 1
+    if($chrome){Start-Process -FilePath $chrome -ArgumentList "--app=http://localhost:$port" -WindowStyle Normal}
+    else {Start-Process "http://localhost:$port"}
+  }
 } catch {
   Add-Content -LiteralPath $launchLog -Value $_.Exception.Message
   if (-not $NoDialogs) {

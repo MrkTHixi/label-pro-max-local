@@ -64,6 +64,24 @@ app.get('/api/customers', (req, res) => {
   ok(res, { customers: rows, total: db.prepare('SELECT COUNT(*) n FROM customers WHERE is_active=1').get().n });
 });
 
+app.get('/api/customers/favorites', (_req, res) => {
+  ok(res, {customers: db.prepare('SELECT * FROM customers WHERE is_active=1 AND is_favorite=1 ORDER BY attention_name, place_name, id').all()});
+});
+app.put('/api/customers/:id/favorite', (req, res) => {
+  if (typeof req.body?.favorite !== 'boolean') return err(res,400,'กรุณาระบุสถานะดาว');
+  const result=db.prepare('UPDATE customers SET is_favorite=?, updated_at=? WHERE id=? AND is_active=1').run(Number(req.body.favorite),now(),req.params.id);
+  if (!result.changes) return err(res,404,'ไม่พบลูกค้าที่ใช้งาน');
+  ok(res, {});
+});
+
+app.post('/api/desktop/install', (_req, res) => {
+  if(process.platform!=='win32') return err(res,400,'ทางลัดนี้ใช้สำหรับ Windows');
+  execFile('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',join(ROOT,'scripts','install-desktop.ps1')],{windowsHide:true,timeout:15000},(error)=>{
+    if(error) return err(res,500,'ติดตั้งทางลัดไม่สำเร็จ: '+error.message);
+    ok(res, {message:'สร้างทางลัดบน Desktop และตั้งให้ระบบเปิดเบื้องหลังเมื่อเข้า Windows แล้ว'});
+  });
+});
+
 app.get('/api/customers/clear-info', (_req, res) => {
   for (const [key, value] of clearTokens) if (value.expires < Date.now()) clearTokens.delete(key);
   if (clearTokens.size >= 20) clearTokens.delete(clearTokens.keys().next().value);

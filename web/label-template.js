@@ -7,8 +7,8 @@ export function labelMarkup(job = {}, sender = job) {
       ${paragraph('ผู้ส่ง: ' + (sender.sender_name || '-'), 'sender-name')}
       ${paragraph(sender.sender_phone ? 'เบอร์โทร ' + sender.sender_phone : '')}
       ${paragraph(sender.sender_address)}${paragraph(sender.sender_address_extra)}
-      <hr><p class="recipient">ผู้รับ</p>${paragraph(job.place_name || '— เลือกลูกค้า —', 'place')}
-      ${paragraph(job.attention_name, 'attention')}${paragraph(job.address)}${paragraph('ติดต่อ: ' + (job.contact || '-'), 'contact')}
+      <hr><p class="recipient">ผู้รับ</p>${paragraph(job.attention_name || (job.id ? '—' : '— เลือกลูกค้า —'), 'place')}
+      ${paragraph(job.address)}${paragraph('ติดต่อ: ' + (job.contact || '-'), 'contact')}
     </div></div><div class="label-message">${escapeHtml(message)}</div></div></article>`;
 }
 export async function fitLabel() {

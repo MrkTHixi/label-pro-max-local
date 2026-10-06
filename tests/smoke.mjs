@@ -57,6 +57,19 @@ try{
   await page.goto(base);await page.locator('#results .cust').first().waitFor();
   await page.locator('#results .cust').first().click();
   await page.frameLocator('#labelPreview').locator('.place').waitFor();
+  const selectedText=await page.frameLocator('#labelPreview').locator('.label-content').innerText();
+  check('ฉลากพิมพ์ชื่อผู้รับ B โดยไม่พิมพ์ชื่อย่อ A',()=>{assert(selectedText.includes('ผู้รับทดสอบ'));assert(!selectedText.includes('ลูกค้าทดสอบ'));});
+  await page.locator('#results .starbtn').first().click();
+  await page.locator('#favorites .cust').first().waitFor();
+  const favorite=await api(base,'/api/customers/favorites');
+  check('ปักหมุดบันทึกในฐานข้อมูล',()=>{assert.equal(favorite.customers.length,1);assert.equal(database.prepare('SELECT is_favorite FROM customers WHERE id=?').get(favorite.customers[0].id).is_favorite,1);});
+  await page.reload();await page.locator('#favorites .cust').first().waitFor();
+  await page.locator('#q').fill('ไม่พบข้อมูลนี้แน่นอน');
+  await page.locator('#results .empty').waitFor();
+  await page.locator('#favorites .cust').first().dblclick();
+  await page.locator('#printModal.open').waitFor();
+  check('ดับเบิลคลิกปักหมุดเปิดตัวเลือกพิมพ์โดยไม่ส่งงานทันที',()=>assert.equal(database.prepare('SELECT COUNT(*) n FROM print_jobs').get().n,76));
+  await page.locator('#printCancel').click();
   check('preview ใช้ข้อความลูกค้าและฟอนต์ไทย',()=>assert.equal(pageErrors.length,0));
   await page.locator('[data-view="customers"]').click();await page.locator('#custBody tr').first().waitFor();
   await page.locator('#clearCustomersBtn').click();await page.locator('#clearSummary').filter({hasText:'302'}).waitFor();
@@ -74,6 +87,7 @@ try{
   check('สำรองก่อนล้างมีลูกค้าครบ 302 ราย',()=>assert.equal(backupDb.prepare('SELECT COUNT(*) n FROM customers').get().n,302));backupDb.close();
   await page.locator('[data-view="print"]').click();await page.frameLocator('#labelPreview').locator('.place').filter({hasText:'เลือกลูกค้า'}).waitFor();
   check('ล้างแล้ว preview ไม่มีลูกค้าเดิมค้าง',()=>assert.equal(pageErrors.length,0));
+  assert.equal((await api(base,'/api/customers/favorites')).customers.length,0);
   await page.locator('[data-view="settings"]').click();
   await page.locator('#runtimeStatus').filter({hasText:'โหมดทดลอง'}).waitFor();
   const printers=await api(base,'/api/printers');
@@ -106,7 +120,7 @@ try{
   const parsedPdf=await PDFDocument.load(buffer), dimensions=parsedPdf.getPage(0).getSize();
   check('PDF เป็นหน้าฉลากจริง 100×150 มม.',()=>{assert.equal(parsedPdf.getPageCount(),1);assert(Math.abs(dimensions.width*25.4/72-100)<0.001);assert(Math.abs(dimensions.height*25.4/72-150)<0.001);});
   await assert.rejects(()=>pdf.renderLabelPdf({...sample,address:'ที่อยู่ยาวเกิน '.repeat(500)}),/ยาวเกิน/);check('ที่อยู่ยาวเกินถูกแจ้ง ไม่ตัดทิ้งเงียบ',()=>{});
-  const mixed=await pdf.renderLabelPdf({...sample,place_name:'น้ำ กุ้ง ปู่ ญู่ ผู้รับ ที่อยู่',message:'ขอบคุณค่ะ'});writeFileSync(join(qa,'label-thai-marks.pdf'),mixed);
+  const mixed=await pdf.renderLabelPdf({...sample,attention_name:'น้ำ กุ้ง ปู่ ญู่ ผู้รับ ที่อยู่',message:'ขอบคุณค่ะ'});writeFileSync(join(qa,'label-thai-marks.pdf'),mixed);
   try{execFileSync('pdftoppm',['-f','1','-singlefile','-scale-to','1500','-png',join(qa,'label-thai-check.pdf'),join(qa,'label-thai-check')],{windowsHide:true});execFileSync('pdftoppm',['-f','1','-singlefile','-scale-to','1500','-png',join(qa,'label-thai-marks.pdf'),join(qa,'label-thai-marks')],{windowsHide:true});}catch(error){if(error.code!=='ENOENT')throw error;console.log('PDF visual render skipped: install Poppler to create QA PNGs');}
   await pdf.closeLabelBrowser();
   const {WindowsPdfDriver,MockDriver,cleanupStalePrintFiles}=await import('../server/printer-drivers.mjs');

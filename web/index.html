@@ -43,6 +43,8 @@
       <div class="card">
         <h2>🔍 ค้นหาลูกค้า</h2>
         <div class="sub">ค้นหาด้วย <b>ชื่อสถานที่</b> ที่พนักงานตั้งจดจำ — พิมพ์ชื่อย่อได้เลย</div>
+        <h3>⭐ ที่อยู่ที่ใช้งานบ่อย</h3>
+        <div id="favorites" class="favorites"><div class="sub">กดดาวข้างชื่อลูกค้าเพื่อปักหมุด · ดับเบิลคลิกเพื่อเปิดตัวเลือกพิมพ์</div></div>
         <div class="searchbox">
           <input id="q" placeholder="พิมพ์ค้นหา: ชื่อสถานที่ / กรุณาส่ง / ติดต่อ..." autocomplete="off">
         </div>
@@ -53,7 +55,7 @@
     <div class="preview-wrap">
       <div class="preview-cap">👁️ ตัวอย่างฉลากจริง 100 × 150 มม.</div>
       <div class="label-preview"><iframe id="labelPreview" title="ตัวอย่างฉลากที่ใช้เทมเพลตเดียวกับไฟล์พิมพ์"></iframe></div>
-      <div class="edit-hint">บล็อกผู้รับ: <b>ชื่อสถานที่</b> ตัวใหญ่ → กรุณาส่ง → ที่อยู่ → ติดต่อ</div>
+      <div class="edit-hint">ผู้รับพิมพ์เฉพาะ <b>ชื่อร้าน/ผู้รับจากคอลัมน์ B</b> → ที่อยู่ → ติดต่อ · ชื่อย่อคอลัมน์ A ใช้ค้นหาเท่านั้น</div>
     </div>
   </div>
 </section>
@@ -119,6 +121,8 @@
       <div class="status-box muted" id="backupStatus">กำลังโหลดสถานะ…</div>
       <hr class="hr">
       <div class="status-box muted" id="runtimeStatus">กำลังตรวจระบบพิมพ์…</div>
+      <div class="btnrow"><button class="btn btn-outline" id="installDesktop">🖥️ สร้างทางลัดและเปิดพร้อม Windows</button><button class="btn btn-outline hidden" id="installApp">ติดตั้งแอปใน Chrome</button></div>
+      <div class="sub">ทางลัด LabelPro Local บน Desktop เปิดระบบให้เอง ระบบเริ่มเบื้องหลังเมื่อเข้า Windows โดยไม่เปิดหน้าต่าง terminal</div>
       <div class="btnrow">
         <button class="btn btn-outline" id="restartRuntime">🔄 เริ่มระบบใหม่</button>
         <button class="btn btn-outline" id="stopRuntime">⏹️ ปิดระบบ</button>
