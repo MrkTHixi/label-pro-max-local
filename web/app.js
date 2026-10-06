@@ -3,11 +3,12 @@
 // → สั่งพิมพ์ → popup สำเร็จ (กลางจอ + คำอวยพรตามวันจริง)
 import { previewDocument } from './label-template.js';
 const $ = (id) => document.getElementById(id);
+let updateSession=null;
 async function request(path, method = 'GET', body) {
   try {
-    const response = await fetch(path, { method, ...(body !== undefined ? {headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {}) });
+    const response = await fetch(path, { method, signal:AbortSignal.timeout(10000), ...(body !== undefined ? {headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {}) });
     return await response.json();
-  } catch { return {ok:false,message:'ติดต่อระบบไม่ได้ กรุณาเปิด start-label-pro-max-local.vbs แล้วลองใหม่'}; }
+  } catch { return {ok:false,disconnected:true,message:updateSession?'กำลังอัปเดตและเริ่มระบบใหม่ กรุณารอสักครู่':'ติดต่อระบบไม่ได้ กรุณาเปิด start-label-pro-max-local.vbs แล้วลองใหม่'}; }
 }
 const api = {
   get: (p) => request(p),
@@ -311,6 +312,7 @@ async function loadQueueBadge() {
   b.classList.toggle('hidden', n === 0);
 }
 setInterval(() => {
+  if(updateSession)return;
   if ($('view-queue').classList.contains('active')) loadQueue();
   loadQueueBadge();
 }, 5000);
@@ -482,11 +484,25 @@ $('backupNow').addEventListener('click', async () => {
   toast(r.ok ? '💾 เริ่มสำรองข้อมูลเบื้องหลังแล้ว' : '❌ สั่งสำรองไม่สำเร็จ', !r.ok);
   setTimeout(loadSettings, 8000);
 });
+function showUpdateProgress(message){
+  $('updateStatus').classList.remove('hidden');$('updateStatus').textContent=message;
+  $('updateProgressText').textContent=message;
+}
+function finishUpdate(message,isError=false){
+  updateSession=null;$('updateProgressModal').classList.remove('open');$('updateNow').disabled=false;
+  showUpdateProgress(message);toast(message,isError);
+}
 $('updateNow').addEventListener('click', async () => {
+  if(updateSession)return;
   if (!confirm('อัปเดตแอปจาก GitHub? ระบบจะเริ่มใหม่เมื่ออัปเดตสำเร็จ กรุณาจัดการคิวงานก่อน')) return;
-  const r = await api.post('/api/update');
-  toast(r.ok ? '⬇️ ' + r.note : '❌ สั่งอัปเดตไม่สำเร็จ', !r.ok);
-  if (r.ok) pollUpdate();
+  const before=await api.get('/api/health');
+  if(!before.ok){toast(before.message,true);return;}
+  updateSession={pid:before.pid,revision:before.revision,appId:before.app_id,deadline:Date.now()+420000,target:null};
+  $('updateNow').disabled=true;$('updateProgressModal').classList.add('open');
+  showUpdateProgress('กำลังตรวจและดาวน์โหลดอัปเดต กรุณารอสักครู่');
+  const result=await api.post('/api/update');
+  if(!result.ok){finishUpdate(result.message,true);return;}
+  pollUpdate();
 });
 
 async function loadRuntimeStatus() {
@@ -496,10 +512,24 @@ async function loadRuntimeStatus() {
   $('restartRuntime').disabled = !d.managed; $('stopRuntime').disabled = !d.managed;
 }
 async function pollUpdate() {
-  $('updateStatus').classList.remove('hidden');
-  const d = await api.get('/api/update');
-  $('updateStatus').textContent = d.message || 'ระบบกำลังเริ่มใหม่ กรุณารอสักครู่แล้วรีเฟรช';
-  if (d.running) setTimeout(pollUpdate,2000);
+  if(!updateSession)return;
+  if(Date.now()>updateSession.deadline){finishUpdate('ระบบยังไม่พร้อมหลังอัปเดต กรุณาตรวจการเปิดโปรแกรมอีกครั้ง',true);return;}
+  const status=await api.get('/api/update');
+  if(status.target)updateSession.target=status.target;
+  const health=await api.get('/api/health');
+  if(health.ok&&health.app_id!==updateSession.appId){finishUpdate('มีระบบจากอีกโฟลเดอร์เปิดแทน กรุณาตรวจโฟลเดอร์ที่ใช้งาน',true);return;}
+  if(health.ok&&health.pid!==updateSession.pid&&health.worker?.ready){
+    const updated=updateSession.target?health.revision===updateSession.target:health.revision&&health.revision!==updateSession.revision;
+    if(!updated){finishUpdate('ระบบกลับมาใช้งานได้ แต่อัปเดตยังไม่สำเร็จ กรุณาตรวจอีกครั้ง',true);return;}
+    sessionStorage.setItem('labelpro-update-completed','1');location.reload();return;
+  }
+  if(status.disconnected||!health.ok||status.restarting){
+    showUpdateProgress('กำลังติดตั้งอัปเดตและเริ่มระบบใหม่ หน้าจอจะกลับมาเองเมื่อพร้อม');
+  }else if(status.running){showUpdateProgress(status.message||'กำลังดาวน์โหลดอัปเดต');}
+  else if(status.ok===false){finishUpdate(status.message||'อัปเดตไม่สำเร็จ ระบบเดิมยังใช้งานได้',true);return;}
+  else if(status.ok===true&&!status.restarting){finishUpdate(status.message||'เป็นเวอร์ชันล่าสุดแล้ว');return;}
+  else showUpdateProgress('กำลังรอระบบพร้อมใช้งาน');
+  setTimeout(pollUpdate,1000);
 }
 $('restartRuntime').addEventListener('click', async () => {
   const d=await api.post('/api/runtime/restart'); toast(d.ok?'กำลังเริ่มระบบใหม่ กรุณารอสักครู่แล้วรีเฟรช':d.message,!d.ok);
@@ -571,3 +601,5 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('/service-work
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installApp').classList.remove('hidden');});
 $('installApp').addEventListener('click',async()=>{if(!installPrompt)return;await installPrompt.prompt();installPrompt=null;$('installApp').classList.add('hidden');});
 $('installDesktop').addEventListener('click',async()=>{const button=$('installDesktop');button.disabled=true;const d=await api.post('/api/desktop/install');button.disabled=false;toast(d.message,!d.ok);});
+
+if(sessionStorage.getItem('labelpro-update-completed')){sessionStorage.removeItem('labelpro-update-completed');toast('อัปเดตสำเร็จ พร้อมใช้งานแล้ว');}

@@ -4,7 +4,7 @@ import express from 'express';
 import { readCustomerBackup,replaceCustomers } from './customer-transfer.mjs';
 import { downloadGithubBackup } from './github-backup.mjs';
 import multer from 'multer';
-import { spawn, execFile } from 'node:child_process';
+import { spawn, execFile, execFileSync } from 'node:child_process';
 import { basename, join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { APP_ID } from './paths.mjs';
@@ -21,6 +21,8 @@ import {
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+let APP_REVISION=null;
+try{APP_REVISION=execFileSync('git',['rev-parse','HEAD'],{cwd:ROOT,encoding:'utf8',windowsHide:true,timeout:5000}).trim();}catch{}
 const APP_VERSION = JSON.parse(readFileSync(join(ROOT,'package.json'),'utf8')).version;
 app.use(express.json({ limit: '1mb' }));
 let clearing = false, importing = false, updating = false;
@@ -43,7 +45,7 @@ const err = (res, code, message) => res.status(code).json({ ok: false, message }
 // ---------- health ----------
 app.get('/api/health', (_req, res) => {
   const worker = db.prepare('SELECT * FROM worker_state WHERE id=1').get();
-  ok(res, { project_root: ROOT, database_path: DB_PATH, app_id: APP_ID, version: APP_VERSION, pid: process.pid, time: now(), branch: getSetting('branch_name'), managed: !!process.send,
+  ok(res, { revision: APP_REVISION, project_root: ROOT, database_path: DB_PATH, app_id: APP_ID, version: APP_VERSION, pid: process.pid, time: now(), branch: getSetting('branch_name'), managed: !!process.send,
     worker: { ready: !!worker && Date.now() - Date.parse(worker.heartbeat) < 10000, driver: worker?.driver || null } });
 });
 
@@ -381,6 +383,8 @@ app.post('/api/update', (_req, res) => {
     if (!error && prepared) {
       updating = true;
       updateResult.message = 'เตรียมอัปเดตแล้ว กำลังเริ่มระบบใหม่';
+      updateResult.restarting=true;
+      try{updateResult.target=JSON.parse(readFileSync(prepared[1].trim(),'utf8')).target;}catch{}
       setTimeout(() => process.send?.({type:'apply-update',manifest:prepared[1].trim()}),1000);
     }
   });
