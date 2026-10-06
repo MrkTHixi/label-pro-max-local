@@ -1,4 +1,4 @@
-/* LabelPro Local — coffee theme (ตาม mockup v3) */
+/* Label Pro Max Local — coffee theme (ตาม mockup v3) */
 :root{
   --bg:#F6F1E8; --card:#FFFDF9; --ink:#2C1503; --muted:#A08060;
   --coffee:#6F4E37; --coffee-dark:#4A3220; --accent:#C68642; --accent-soft:#F5E6D0;
@@ -37,6 +37,9 @@ body{font-family:'Sarabun',system-ui,sans-serif; background:var(--bg); color:var
 .toolbar{flex-wrap:wrap}
 .btn .badge{background:#C0392B; color:#fff; font-size:11px; min-width:20px; height:20px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; padding:0 6px}
 .hidden{display:none !important}
+.queue-tools{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:12px 0 6px}
+.queue-tools label{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.queue-tools input,.failed-job-select{width:18px;height:18px;accent-color:var(--coffee);cursor:pointer}
 
 .wrap{max-width:1280px; margin:0 auto; padding:24px 28px 60px}
 .screen{display:none}
@@ -138,7 +141,9 @@ body{font-family:'Sarabun',system-ui,sans-serif; background:var(--bg); color:var
 .s-ok{margin-top:14px; width:100%; padding:15px; font-size:17px; justify-content:center}
 
 /* ── queue / customers table ── */
-.stat-chips{display:flex; gap:12px; margin-bottom:20px}
+.stat-chips{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+.queue-table-wrap{overflow-x:auto;margin-top:12px}
+.queue-table-wrap table{min-width:800px}
 .chip{background:var(--card); border-radius:12px; padding:12px 20px; box-shadow:var(--shadow); font-family:'Prompt',sans-serif}
 .chip b{font-size:24px; display:block}
 .chip span{font-size:13px; color:var(--muted)}

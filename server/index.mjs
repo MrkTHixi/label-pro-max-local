@@ -1,4 +1,4 @@
-// server/index.mjs — LabelPro Local web server
+// server/index.mjs — Label Pro Max Local web server
 // รัน: npm start  →  http://localhost:3000
 import express from 'express';
 import multer from 'multer';
@@ -27,7 +27,7 @@ const customerRevision = () => createHash('sha256').update(JSON.stringify(db.pre
 app.use('/api', (req, res, next) => {
   if (!['GET','HEAD','OPTIONS'].includes(req.method)) {
     const origin = req.get('origin');
-    if (origin && origin !== `${req.protocol}://${req.get('host')}`) return err(res, 403, 'คำสั่งต้องมาจากหน้า LabelPro บนเครื่องนี้');
+    if (origin && origin !== `${req.protocol}://${req.get('host')}`) return err(res, 403, 'คำสั่งต้องมาจากหน้า Label Pro Max Local บนเครื่องนี้');
     if ((clearing || updating) && ['/customers','/print','/import-excel','/sender','/settings','/update','/backup'].some((p) => req.path.startsWith(p))) return err(res, 409, 'ระบบกำลังจัดการข้อมูล กรุณารอสักครู่');
   }
   next();
@@ -198,9 +198,27 @@ app.get('/api/queue', (_req, res) => {
   const stats = db.prepare(`SELECT
     COALESCE(SUM(status IN ('queued','printing')),0) waiting,
     COALESCE(SUM(status='failed'),0) failed,
+    COALESCE(SUM(CASE WHEN status='done' THEN copies ELSE 0 END),0) done_copies_total,
     COALESCE(SUM(status='done' AND date(printed_at,'+7 hours')=date('now','+7 hours')),0) done_today
     FROM print_jobs`).get();
-  ok(res, { jobs: rows, stats });
+  const failed_ids = db.prepare("SELECT id FROM print_jobs WHERE status='failed' ORDER BY id").all().map(row=>row.id);
+  ok(res, { jobs: rows, stats, failed_ids });
+});
+
+app.post('/api/queue/clear-failed', (req,res) => {
+  if (req.body?.confirmation !== 'ล้างงานล้มเหลว') return err(res,400,'กรุณายืนยันล้างงานล้มเหลว');
+  const ids=req.body?.ids;
+  if (!Array.isArray(ids) || !ids.length || ids.some(id=>!Number.isSafeInteger(id)||id<1) || new Set(ids).size!==ids.length) return err(res,400,'กรุณาเลือกรายการงานล้มเหลวให้ถูกต้อง');
+  if(clearing || updating) return err(res,409,'ระบบกำลังจัดการข้อมูล กรุณารอสักครู่');
+  try {
+    const deleted=db.transaction(()=>{
+      const status=db.prepare('SELECT status FROM print_jobs WHERE id=?');
+      if(ids.some(id=>status.get(id)?.status!=='failed')) throw new Error('รายการเปลี่ยนแล้ว กรุณาเลือกงานล้มเหลวอีกครั้ง');
+      const remove=db.prepare("DELETE FROM print_jobs WHERE id=? AND status='failed'");
+      return ids.reduce((count,id)=>count+remove.run(id).changes,0);
+    }).immediate();
+    ok(res,{deleted});
+  } catch(error){err(res,409,error.message);}
 });
 
 app.get('/api/queue/:id/pdf', async (req, res) => {
@@ -317,7 +335,7 @@ let updateResult = { running: false, ok: null, message: '' };
 app.get('/api/update', (_req, res) => ok(res, updateResult));
 app.post('/api/update', (_req, res) => {
   if (clearing || importing || db.prepare("SELECT 1 FROM print_jobs WHERE status IN ('queued','printing')").get()) return err(res,409,'กรุณารอการนำเข้าและจัดการคิวงานก่อนอัปเดต');
-  if (!process.send) return err(res,409,'กรุณาเปิดด้วย start-labelpro.vbs เพื่อให้อัปเดตและเริ่มระบบใหม่ได้อัตโนมัติ');
+  if (!process.send) return err(res,409,'กรุณาเปิดด้วย start-label-pro-max-local.vbs เพื่อให้อัปเดตและเริ่มระบบใหม่ได้อัตโนมัติ');
   updating = true; updateResult = { running: true, ok: null, message: 'กำลังตรวจและดาวน์โหลดอัปเดต' };
   execFile(process.execPath, [join(ROOT,'scripts','update.mjs')], { cwd: ROOT, windowsHide:true, timeout:300000, env:{...process.env} }, (error,stdout,stderr) => {
     updating = false;
@@ -338,7 +356,7 @@ app.post('/api/runtime/stop', (_req,res) => {
 });
 app.post('/api/runtime/restart', (_req,res) => {
   if (updating || clearing || importing || db.prepare("SELECT 1 FROM print_jobs WHERE status='printing'").get()) return err(res,409,'กรุณารองานปัจจุบันก่อนเริ่มใหม่');
-  if (!process.send) return err(res,409,'กรุณาเปิดด้วย start-labelpro.vbs');
+  if (!process.send) return err(res,409,'กรุณาเปิดด้วย start-label-pro-max-local.vbs');
   ok(res,{restarting:true}); setTimeout(() => process.send?.({type:'restart'}),300);
 });
 
@@ -351,7 +369,7 @@ const server = app.listen(PORT, '127.0.0.1', () => {
   console.log(`[labelpro] http://localhost:${PORT}`);
   process.send?.({type:'ready'});
 });
-server.on('error', (error) => { console.error(error.code === 'EADDRINUSE' ? 'พอร์ตถูกใช้งานอยู่ กรุณาปิดระบบเดิมก่อนเปิด LabelPro' : error.message); release(); process.exit(1); });
+server.on('error', (error) => { console.error(error.code === 'EADDRINUSE' ? 'พอร์ตถูกใช้งานอยู่ กรุณาปิดระบบเดิมก่อนเปิด Label Pro Max Local' : error.message); release(); process.exit(1); });
 async function stop() {
   server.close(async () => { await closeLabelBrowser(); db.close(); release(); process.exit(0); });
   server.closeIdleConnections();

@@ -1,4 +1,4 @@
--- LabelPro Local — schema v2
+-- Label Pro Max Local — schema v2
 -- รันอัตโนมัติตอน server start ครั้งแรก (ดู server/db.mjs)
 -- รูปแบบข้อมูลตามไฟล์ Excel จริงของร้าน: 4 คอลัมน์
 --   A=ชื่อสถานที่ (place_name: ชื่อย่อที่พนักงานใช้จำลูกค้า = คีย์หลักในการค้นหา)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LabelPro Local — ระบบพิมพ์ฉลากพัสดุ</title>
+<title>Label Pro Max Local — ระบบพิมพ์ฉลากพัสดุ</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="logo.png">
@@ -14,8 +14,8 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="logo"><img src="logo.png" alt="LabelPro Local"></div>
-    <div><h1>LabelPro Local</h1><small>CoffeeWORKS · ระบบพิมพ์ฉลากพัสดุ</small></div>
+    <div class="logo"><img src="logo.png" alt="Label Pro Max Local"></div>
+    <div><h1>Label Pro Max Local</h1><small>CoffeeWORKS · ระบบพิมพ์ฉลากพัสดุ</small></div>
   </div>
   <span class="branch-chip" id="branchChip">📍 สาขา: —</span>
   <nav class="top-actions">
@@ -66,11 +66,18 @@
     <div class="chip"><b style="color:var(--amber)" id="stWait">0</b><span>⏳ รอพิมพ์</span></div>
     <div class="chip"><b style="color:var(--green)" id="stDone">0</b><span>✅ ส่งพิมพ์วันนี้</span></div>
     <div class="chip"><b style="color:var(--red)" id="stFail">0</b><span>❌ ล้มเหลว</span></div>
+    <div class="chip"><b style="color:var(--green)" id="stTotalCopies">0</b><span>🖨️ ส่งพิมพ์สำเร็จทั้งหมด (ใบ)</span></div>
   </div>
-  <table>
-    <thead><tr><th>เวลา</th><th>ผู้รับ</th><th>ข้อความ</th><th>จำนวน</th><th>ผู้สั่ง</th><th>สถานะ</th><th></th></tr></thead>
+  <div class="queue-tools">
+    <label><input type="checkbox" id="selectAllFailed"> เลือกงานล้มเหลวทั้งหมด</label>
+    <span class="muted" id="failedSelectionCount">เลือก 0 งาน</span>
+    <button class="btn btn-danger" id="clearFailedJobs" disabled>ล้างงานล้มเหลวที่เลือก</button>
+  </div>
+  <div class="sub">เลือกทั้งหมดรวมงานล้มเหลวที่เก่ากว่า 50 รายการล่าสุด · ล้างเฉพาะประวัติงานล้มเหลว งานสำเร็จและยอดรวมจำนวนใบยังอยู่</div>
+  <div class="queue-table-wrap"><table>
+    <thead><tr><th>เลือก</th><th>เวลา</th><th>ผู้รับ</th><th>ข้อความ</th><th>จำนวน</th><th>ผู้สั่ง</th><th>สถานะ</th><th></th></tr></thead>
     <tbody id="queueBody"></tbody>
-  </table>
+  </table></div>
 </section>
 
 <!-- ══════════ ลูกค้า ══════════ -->
@@ -110,7 +117,7 @@
         <datalist id="printerNames"></datalist>
         <div class="sub" id="printerHint" style="margin:4px 0 0">เลือกชื่อให้ตรงกับเครื่องพิมพ์ที่ติดตั้งใน Windows</div></div>
       <div class="field"><label>Git repo สำหรับ backup (ว่างได้ = เก็บในเครื่องอย่างเดียว)</label>
-        <input id="set_backup_url" placeholder="https://github.com/ORG/labelpro-backup-pattaya.git"></div>
+        <input id="set_backup_url" placeholder="https://github.com/ORG/label-pro-max-local-backup-pattaya.git"></div>
       <div class="sub" style="margin-top:2px">💾 สำรองข้อมูลลง git <b>อัตโนมัติเมื่อเพิ่มลูกค้าใหม่</b> หรือกดปุ่มด้านล่าง — ไม่สำรองตามเวลา</div>
       <button class="btn btn-coffee" id="saveSettings">💾 บันทึกตั้งค่า</button>
       <hr class="hr">
@@ -124,9 +131,9 @@
     <div class="card" id="systemCard">
       <h2>🖥️ ระบบและคู่มือ</h2>
       <div class="status-box muted" id="runtimeStatus">กำลังตรวจระบบพิมพ์…</div>
-      <div class="btnrow"><a class="btn btn-outline" href="/manual.html" target="_blank" rel="noopener">คู่มือติดตั้งและใช้งาน</a><a class="btn btn-outline" href="/manual.pdf" download="LabelPro-User-Guide.pdf">ดาวน์โหลดคู่มือ PDF</a></div>
+      <div class="btnrow"><a class="btn btn-outline" href="/manual.html" target="_blank" rel="noopener">คู่มือติดตั้งและใช้งาน</a><a class="btn btn-outline" href="/manual.pdf" download="Label Pro Max Local-User-Guide.pdf">ดาวน์โหลดคู่มือ PDF</a></div>
       <div class="btnrow"><button class="btn btn-outline" id="installDesktop">🖥️ สร้างทางลัดและเปิดพร้อม Windows</button><button class="btn btn-outline hidden" id="installApp">ติดตั้งแอปใน Chrome</button></div>
-      <div class="sub">ทางลัด LabelPro Local บน Desktop เปิดระบบให้เอง ระบบเริ่มเบื้องหลังเมื่อเข้า Windows โดยไม่เปิดหน้าต่าง terminal</div>
+      <div class="sub">ทางลัด Label Pro Max Local บน Desktop เปิดระบบให้เอง ระบบเริ่มเบื้องหลังเมื่อเข้า Windows โดยไม่เปิดหน้าต่าง terminal</div>
       <div class="btnrow">
         <button class="btn btn-outline" id="restartRuntime">🔄 เริ่มระบบใหม่</button>
         <button class="btn btn-outline" id="stopRuntime">⏹️ ปิดระบบ</button>
@@ -182,7 +189,7 @@
     <div class="s-title">เข้าคิวพิมพ์แล้ว!</div>
     <div class="s-detail" id="s-detail"></div>
     <div class="s-div"></div>
-    <div class="s-thanks">ขอบคุณที่ใช้งาน <b>LabelPro Local</b> ☕</div>
+    <div class="s-thanks">ขอบคุณที่ใช้งาน <b>Label Pro Max Local</b> ☕</div>
     <div class="s-day" id="s-day"></div>
     <div><span class="s-bless" id="s-bless"></span></div>
     <div class="s-count" id="s-count"></div>

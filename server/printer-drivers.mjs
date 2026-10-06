@@ -32,7 +32,7 @@ export async function sendWindowsPdf(path, options) {
   if(printer.offline)throw new Error('เครื่องพิมพ์อยู่ในโหมด offline กรุณาตรวจสาย USB และสถานะใน Windows');
   let binary;
   try { binary = join(dirname(require.resolve('pdf-to-printer')), 'SumatraPDF-3.4.6-32.exe'); }
-  catch { throw new Error('ไม่พบโปรแกรมส่งพิมพ์ กรุณาเปิด start-labelpro.vbs เพื่อเตรียมระบบ'); }
+  catch { throw new Error('ไม่พบโปรแกรมส่งพิมพ์ กรุณาเปิด start-label-pro-max-local.vbs เพื่อเตรียมระบบ'); }
   if (!existsSync(binary)) throw new Error('ไม่พบ SumatraPDF กรุณาติดตั้ง dependency ใหม่');
   await execute(binary, ['-print-to', options.printer, '-silent', '-print-settings', `noscale,${options.copies}x`, path], { windowsHide: true, timeout: 120_000 });
 }

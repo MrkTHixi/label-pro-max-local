@@ -19,7 +19,7 @@ function Show-Status([string]$message) {
     if (-not $script:form) {
       Add-Type -AssemblyName System.Windows.Forms
       $script:form = New-Object System.Windows.Forms.Form
-      $script:form.Text = 'LabelPro'; $script:form.Width = 450; $script:form.Height = 140
+      $script:form.Text = 'Label Pro Max Local'; $script:form.Width = 450; $script:form.Height = 140
       $script:form.StartPosition = 'CenterScreen'; $script:form.ControlBox = $false
       $script:statusLabel = New-Object System.Windows.Forms.Label
       $script:statusLabel.Dock = 'Fill'; $script:statusLabel.TextAlign = 'MiddleCenter'
@@ -59,7 +59,7 @@ try {
   $pathHash = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($projectRoot + '|' + $logDir))).Replace('-','')
   $setupMutex = New-Object Threading.Mutex($false, "Local\LabelProLaunch-$pathHash")
   try { $ownedMutex = $setupMutex.WaitOne(60000) } catch [Threading.AbandonedMutexException] { $ownedMutex = $true }
-  if (-not $ownedMutex) { throw 'LabelPro is still preparing. Please try the desktop shortcut again shortly.' }
+  if (-not $ownedMutex) { throw 'Label Pro Max Local is still preparing. Please try the desktop shortcut again shortly.' }
   $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
   $nodePath = if ($nodeCommand -and -not $ForcePortableNode) { $nodeCommand.Source } else { $null }
   if ($nodePath) { $major = [int]((& $nodePath --version).TrimStart('v').Split('.')[0]); if ($major -lt 22) { $nodePath = $null } }
@@ -68,7 +68,7 @@ try {
     $portable = Get-ChildItem -LiteralPath $runtimeDir -Directory | Where-Object Name -Like 'node-v24*-win-*' | Select-Object -First 1
     if ($portable -and (Test-Path -LiteralPath (Join-Path $portable.FullName 'node.exe'))) { $nodePath = Join-Path $portable.FullName 'node.exe' }
     else {
-      Show-Status 'Preparing Node.js for LabelPro. Please wait...'
+      Show-Status 'Preparing Node.js for Label Pro Max Local. Please wait...'
       [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
       $architecture = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
       $manifest = (Invoke-WebRequest -UseBasicParsing 'https://nodejs.org/dist/latest-v24.x/SHASUMS256.txt').Content
@@ -89,18 +89,18 @@ try {
   $identityScript = Join-Path $PSScriptRoot 'runtime.mjs'
   $identity = (& $nodePath $identityScript --identity).Trim()
   $health = Get-Health
-  if ($health -and $health.app_id -ne $identity) { throw "Port $port is used by another application or a different LabelPro project." }
+  if ($health -and $health.app_id -ne $identity) { throw "Port $port is used by another application or a different Label Pro Max Local project." }
   if ($Stop) {
     if ($health) { Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$port/api/runtime/stop" -ContentType 'application/json' -Body '{}' | Out-Null }
     exit 0
   }
-  if ($health -and -not $health.managed) { throw 'LabelPro is running in the old mode. Close the old server and worker, then open start-labelpro.vbs.' }
+  if ($health -and -not $health.managed) { throw 'Label Pro Max Local is running in the old mode. Close the old server and worker, then open start-label-pro-max-local.vbs.' }
   if (-not $health) {
     $marker = Join-Path $projectRoot 'node_modules\.labelpro-setup'
     $lockHash = (Get-Sha256 (Join-Path $projectRoot 'package-lock.json')) + (& $nodePath -p 'process.versions.modules + process.arch')
     $cached = (Test-Path -LiteralPath $marker) -and (Get-Content -LiteralPath $marker -Raw).Trim() -eq $lockHash
     if (-not $cached) {
-      Show-Status 'Preparing LabelPro. First setup requires internet...'
+      Show-Status 'Preparing Label Pro Max Local. First setup requires internet...'
       Run-Hidden $nodePath @(('"' + $npmCli + '"'),'ci','--no-fund','--no-audit') | Out-Null
       $playwrightCli = Join-Path $projectRoot 'node_modules\playwright\cli.js'
       Run-Hidden $nodePath @(('"' + $playwrightCli + '"'),'install','chromium','--only-shell') | Out-Null
@@ -109,20 +109,20 @@ try {
     try { Run-Hidden $nodePath @(('"' + (Join-Path $PSScriptRoot 'check-setup.mjs') + '"')) | Out-Null }
     catch {
       if (-not $cached) { throw }
-      Show-Status 'Repairing LabelPro dependencies...'
+      Show-Status 'Repairing Label Pro Max Local dependencies...'
       Run-Hidden $nodePath @(('"' + $npmCli + '"'),'ci','--no-fund','--no-audit') | Out-Null
       Run-Hidden $nodePath @(('"' + (Join-Path $projectRoot 'node_modules\playwright\cli.js') + '"'),'install','chromium','--only-shell') | Out-Null
       Run-Hidden $nodePath @(('"' + (Join-Path $PSScriptRoot 'check-setup.mjs') + '"')) | Out-Null
     }
     Set-Content -LiteralPath $marker -Value $lockHash -Encoding ASCII
-    Show-Status 'Starting LabelPro...'
+    Show-Status 'Starting Label Pro Max Local...'
     Start-Process -FilePath $nodePath -ArgumentList @(('"' + $identityScript + '"')) -WorkingDirectory $projectRoot -WindowStyle Hidden | Out-Null
   }
   $deadline = (Get-Date).AddSeconds(55)
   do {
     $health = Get-Health
     if ($health -and $health.app_id -eq $identity -and $health.worker.ready) { break }
-    if ((Get-Date) -gt $deadline) { throw "LabelPro could not start. See $logDir\runtime.log" }
+    if ((Get-Date) -gt $deadline) { throw "Label Pro Max Local could not start. See $logDir\runtime.log" }
     if (-not $NoDialogs -and $form) { [System.Windows.Forms.Application]::DoEvents() }
     Start-Sleep -Milliseconds 300
   } while ($true)
@@ -137,7 +137,7 @@ try {
   Add-Content -LiteralPath $launchLog -Value $_.Exception.Message
   if (-not $NoDialogs) {
     Add-Type -AssemblyName System.Windows.Forms
-    [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'LabelPro', 'OK', 'Error') | Out-Null
+    [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Label Pro Max Local', 'OK', 'Error') | Out-Null
   } else { Write-Error $_.Exception.Message }
   exit 1
 } finally {

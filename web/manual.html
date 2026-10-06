@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>คู่มือติดตั้งและใช้งาน LabelPro Local</title>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>คู่มือติดตั้งและใช้งาน Label Pro Max Local</title>
 <style>
 @font-face{font-family:Thai;src:url('fonts/noto-sans-thai-thai-400-normal.woff2')}@font-face{font-family:Thai;src:url('fonts/noto-sans-thai-thai-700-normal.woff2');font-weight:700}
 *{box-sizing:border-box}body{margin:0;background:#eee8df;color:#30251c;font-family:Thai,Arial,sans-serif;font-size:11pt;line-height:1.65}.page{width:210mm;min-height:297mm;margin:16px auto;background:#fff;padding:17mm 19mm;position:relative}h1{font-size:27pt;line-height:1.35;margin:8mm 0}h2{font-size:19pt;line-height:1.4;margin:0 0 6mm;color:#704520}h3{font-size:13pt;margin:5mm 0 2mm}p{margin:2mm 0 3mm}ol,ul{padding-left:7mm;margin:2mm 0 4mm}li{margin-bottom:2mm}a{color:#704520;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:10pt;margin:4mm 0}td,th{border:1px solid #ded4c8;padding:2.5mm;text-align:left;vertical-align:top}th{background:#f5eee5}.note{background:#f7f0e6;border-left:3px solid #b77b3a;padding:3mm 4mm;margin:4mm 0;font-size:10.5pt}.tag{font-size:10pt;color:#86674c;letter-spacing:.3px}.footer{position:absolute;bottom:10mm;left:19mm;right:19mm;display:flex;justify-content:space-between;border-top:1px solid #e4ddd5;padding-top:2mm;font-size:9pt;color:#86674c}code,pre{font-family:Consolas,monospace;font-size:9pt}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f4f4;padding:3mm;border:1px solid #ddd} .print{position:fixed;right:16px;top:16px;padding:12px;border:0;border-radius:8px;background:#704520;color:white;cursor:pointer;z-index:2}
@@ -8,38 +8,38 @@
 <button class="print" onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button>
 <section class="page">
 <div class="tag">คู่มือสำหรับติดตั้งเครื่องใหม่และพนักงานประจำสาขา · 6 ตุลาคม 2569</div>
-<img src="icons/logo-transparent-192.png" alt="LabelPro" width="110" height="110">
-<h1>LabelPro Local<br>ติดตั้งครั้งแรกจนถึงใช้งานจริง</h1>
+<img src="icons/logo-transparent-192.png" alt="Label Pro Max Local" width="110" height="110">
+<h1>Label Pro Max Local<br>ติดตั้งครั้งแรกจนถึงใช้งานจริง</h1>
 <p>ระบบพิมพ์ฉลากภาษาไทยขนาด 100 × 150 มม. ทำงานในเครื่องประจำสาขา เมื่อเตรียมระบบครั้งแรกแล้ว การค้นหาและพิมพ์ประจำวันใช้งานได้โดยไม่ต้องเชื่อมต่ออินเทอร์เน็ต</p>
 <h3>เตรียมก่อนเริ่ม</h3>
-<ul><li>เครื่อง Windows 64 บิต แนะนำ Windows 11 บนเครื่อง x64 และบัญชีผู้ใช้ที่จะใช้โปรแกรมจริง</li><li>อินเทอร์เน็ตสำหรับติดตั้งครั้งแรก ดาวน์โหลดโปรแกรม และอัปเดต</li><li>Google Chrome และเครื่องพิมพ์ฉลาก พร้อมไดรเวอร์ของรุ่นที่ใช้งาน</li><li>ม้วนฉลาก 100 × 150 มม. และไฟล์ Excel ลูกค้า ถ้าต้องการนำเข้าข้อมูล</li><li>โฟลเดอร์ที่ผู้ใช้เขียนไฟล์ได้ เช่น <code>C:\LabelPro\labelpro-local</code> ไม่วางไว้ใน Program Files หรือเปิดใช้งานจากไฟล์ ZIP</li></ul>
+<ul><li>เครื่อง Windows 64 บิต แนะนำ Windows 11 บนเครื่อง x64 และบัญชีผู้ใช้ที่จะใช้โปรแกรมจริง</li><li>อินเทอร์เน็ตสำหรับติดตั้งครั้งแรก ดาวน์โหลดโปรแกรม และอัปเดต</li><li>Google Chrome และเครื่องพิมพ์ฉลาก พร้อมไดรเวอร์ของรุ่นที่ใช้งาน</li><li>ม้วนฉลาก 100 × 150 มม. และไฟล์ Excel ลูกค้า ถ้าต้องการนำเข้าข้อมูล</li><li>โฟลเดอร์ที่ผู้ใช้เขียนไฟล์ได้ เช่น <code>C:\LabelProMaxLocal\label-pro-max-local</code> ไม่วางไว้ใน Program Files หรือเปิดใช้งานจากไฟล์ ZIP</li></ul>
 <div class="note"><b>เลือกโค้ดรุ่นที่ถูกต้อง</b><br>คู่มือนี้ตรงกับสาขา <code>codex/windows-launcher-thai-print</code> ซึ่งมีตัวเปิดแบบซ่อน รายการติดดาว และฉลากภาษาไทยที่แก้แล้ว ขณะจัดทำยังไม่ได้รวมการแก้ไขนี้เข้า main</div>
 <h3>ลำดับการติดตั้ง</h3>
-<p>ติดตั้ง Chrome และไดรเวอร์ → รับโค้ด → เปิด start-labelpro.vbs ครั้งแรก → ตั้งผู้ส่งและเครื่องพิมพ์ → นำเข้าลูกค้า → ทดลองพิมพ์ 1 ใบ</p>
+<p>ติดตั้ง Chrome และไดรเวอร์ → รับโค้ด → เปิด start-label-pro-max-local.vbs ครั้งแรก → ตั้งผู้ส่งและเครื่องพิมพ์ → นำเข้าลูกค้า → ทดลองพิมพ์ 1 ใบ</p>
 <p>ไม่ต้องติดตั้ง Node.js เอง ตัวเปิดเตรียมเครื่องมือที่จำเป็นให้โดยอัตโนมัติเมื่อไม่มีรุ่นที่ใช้งานได้</p>
-<div class="footer"><span>LabelPro Local · ติดตั้งและใช้งาน</span><span>1 / 7</span></div></section>
+<div class="footer"><span>Label Pro Max Local · ติดตั้งและใช้งาน</span><span>1 / 7</span></div></section>
 
 <section class="page"><div class="tag">ติดตั้งเครื่องใหม่</div><h2>1. ลงโปรแกรมและรับโค้ด</h2>
 <h3>ติดตั้ง Chrome และเครื่องพิมพ์</h3>
 <ol><li>ดาวน์โหลด Chrome จาก <a href="https://www.google.com/chrome/">google.com/chrome</a> แล้วเปิดไฟล์ติดตั้ง ทำตามขั้นตอนบนหน้าจอ</li><li>ติดตั้งไดรเวอร์เครื่องพิมพ์จากไฟล์ที่ผู้ขายหรือผู้ผลิตให้มา เลือกให้ตรงรุ่น ไม่จำเป็นต้องใช้ชื่อ TP518G เหมือนเครื่องต้นทาง</li><li>ต่อ USB เปิดเครื่องพิมพ์ ใส่ฉลาก และตรวจว่า Windows มองเห็นเครื่องพิมพ์ในหน้า Printers &amp; scanners</li><li>เปิด Printing preferences ของเครื่องพิมพ์ ตั้งกระดาษ 100 × 150 mm และทำการปรับตรวจจับฉลากตามคู่มือเครื่องพิมพ์</li></ol>
 <h3>วิธี A: ติดตั้งด้วย Git เพื่อใช้ปุ่มอัปเดตได้</h3>
-<ol><li>ดาวน์โหลดและติดตั้ง <a href="https://git-scm.com/install/windows">Git for Windows</a> ใช้ค่าติดตั้งเริ่มต้น แล้วปิดและเปิด PowerShell ใหม่หลังติดตั้ง</li><li>ใช้ File Explorer สร้างโฟลเดอร์ <code>C:\LabelPro</code></li><li>เปิด PowerShell แล้วคัดลอกคำสั่งด้านล่างทีละบรรทัด ขั้นตอนนี้ใช้เฉพาะตอนรับโค้ดครั้งแรก</li></ol>
-<pre>cd C:\LabelPro
-git clone --branch codex/windows-launcher-thai-print --single-branch https://github.com/MrkTHixi/labelpro-local.git labelpro-local</pre>
+<ol><li>ดาวน์โหลดและติดตั้ง <a href="https://git-scm.com/install/windows">Git for Windows</a> ใช้ค่าติดตั้งเริ่มต้น แล้วปิดและเปิด PowerShell ใหม่หลังติดตั้ง</li><li>ใช้ File Explorer สร้างโฟลเดอร์ <code>C:\LabelProMaxLocal</code></li><li>เปิด PowerShell แล้วคัดลอกคำสั่งด้านล่างทีละบรรทัด ขั้นตอนนี้ใช้เฉพาะตอนรับโค้ดครั้งแรก</li></ol>
+<pre>cd C:\LabelProMaxLocal
+git clone --branch codex/windows-launcher-thai-print --single-branch https://github.com/MrkTHixi/label-pro-max-local.git label-pro-max-local</pre>
 <p>หาก GitHub ขอเข้าสู่ระบบ ให้ใช้บัญชีที่มีสิทธิ์เข้าถึงโปรเจค เมื่อเสร็จแล้วปิด PowerShell ได้</p>
 <h3>วิธี B: ดาวน์โหลด ZIP เพื่อเริ่มใช้งานง่าย</h3>
-<ol><li>เปิด <a href="https://github.com/MrkTHixi/labelpro-local/tree/codex/windows-launcher-thai-print">หน้าโปรเจคสาขาที่แก้ไข</a> ถ้าเป็นโปรเจคส่วนตัวต้องเข้าสู่ระบบ GitHub</li><li>เลือก Code → Download ZIP แล้วแตกไฟล์ทั้งหมด</li><li>ย้ายโฟลเดอร์ที่มี <code>start-labelpro.vbs</code> และ <code>package.json</code> ไปที่ <code>C:\LabelPro\labelpro-local</code></li></ol>
+<ol><li>เปิด <a href="https://github.com/MrkTHixi/label-pro-max-local/tree/codex/windows-launcher-thai-print">หน้าโปรเจคสาขาที่แก้ไข</a> ถ้าเป็นโปรเจคส่วนตัวต้องเข้าสู่ระบบ GitHub</li><li>เลือก Code → Download ZIP แล้วแตกไฟล์ทั้งหมด</li><li>ย้ายโฟลเดอร์ที่มี <code>start-label-pro-max-local.vbs</code> และ <code>package.json</code> ไปที่ <code>C:\LabelProMaxLocal\label-pro-max-local</code></li></ol>
 <div class="note">ZIP เปิดและพิมพ์ได้ แต่ปุ่มอัปเดตจาก GitHub ต้องใช้โปรเจคที่ clone ด้วย Git หากใช้ ZIP ต้องให้ผู้ดูแลอัปเดตโค้ดโดยรักษา data/ และ backups/ เดิมไว้</div>
 <div class="footer"><span>ดาวน์โหลดจากแหล่งทางการ · ไม่ต้องเปิดคำสั่งค้าง</span><span>2 / 7</span></div></section>
 
 <section class="page"><div class="tag">เริ่มใช้งานครั้งแรก</div><h2>2. เปิดระบบและตั้งค่า</h2>
-<ol><li>เปิดโฟลเดอร์โปรเจค แล้วดับเบิลคลิก <b>start-labelpro.vbs</b> จากบัญชี Windows ที่จะใช้ประจำ</li><li>รอหน้าต่างเตรียมระบบ ครั้งแรกต้องใช้อินเทอร์เน็ตและอาจใช้เวลาหลายนาที ตัวเปิดเตรียม Node.js และตัวสร้างฉลากให้ ไม่ต้องเปิดไฟล์ซ้ำระหว่างเตรียม</li><li>เมื่อเว็บและตัวพิมพ์พร้อม ระบบเปิดหน้าต่างโปรแกรมให้ ที่อยู่คือ <code>http://localhost:3000</code></li><li>ตัวเปิดสร้างทางลัด <b>LabelPro Local</b> บน Desktop และลงทะเบียนเริ่มระบบเบื้องหลังเมื่อเข้า Windows ของผู้ใช้คนนี้ หากไม่เห็นทางลัด ให้ไป ตั้งค่า → สร้างทางลัดและเปิดพร้อม Windows</li></ol>
+<ol><li>เปิดโฟลเดอร์โปรเจค แล้วดับเบิลคลิก <b>start-label-pro-max-local.vbs</b> จากบัญชี Windows ที่จะใช้ประจำ</li><li>รอหน้าต่างเตรียมระบบ ครั้งแรกต้องใช้อินเทอร์เน็ตและอาจใช้เวลาหลายนาที ตัวเปิดเตรียม Node.js และตัวสร้างฉลากให้ ไม่ต้องเปิดไฟล์ซ้ำระหว่างเตรียม</li><li>เมื่อเว็บและตัวพิมพ์พร้อม ระบบเปิดหน้าต่างโปรแกรมให้ ที่อยู่คือ <code>http://localhost:3000</code></li><li>ตัวเปิดสร้างทางลัด <b>Label Pro Max Local</b> บน Desktop และลงทะเบียนเริ่มระบบเบื้องหลังเมื่อเข้า Windows ของผู้ใช้คนนี้ หากไม่เห็นทางลัด ให้ไป ตั้งค่า → สร้างทางลัดและเปิดพร้อม Windows</li></ol>
 <h3>ข้อมูลผู้ส่งและสาขา</h3>
 <ol><li>กดปุ่มตั้งค่า รูปเฟืองด้านบน</li><li>กรอกชื่อผู้ส่ง เบอร์โทร ที่อยู่ และที่อยู่เพิ่มเติม แล้วกดบันทึกข้อมูลผู้ส่ง</li><li>กรอกชื่อสาขา เลือกชื่อเครื่องพิมพ์จากรายการของ Windows แล้วกดบันทึกตั้งค่า</li><li>ดูสถานะระบบพิมพ์ ต้องพร้อมใช้งาน หากแสดงโหมดทดลอง จะไม่มีการส่งพิมพ์จริง ให้ผู้ดูแลตรวจการตั้งค่าระบบ</li></ol>
 <div class="note"><b>ชื่อเครื่องพิมพ์ต้องตรงกับ Windows</b><br>เลือกชื่อที่ติดตั้งบนเครื่องใหม่จริง เช่น TP518G หรือชื่ออื่นที่ปรากฏในรายการ อย่าคัดลอกชื่อจากเครื่องเก่าโดยไม่ตรวจสอบ</div>
 <h3>เปิดและปิดในแต่ละวัน</h3>
-<table><tr><th>สิ่งที่ทำ</th><th>ผลที่เกิดขึ้น</th></tr><tr><td>เข้า Windows</td><td>บริการเริ่มเบื้องหลัง ไม่เปิดหน้าโปรแกรมเอง</td></tr><tr><td>เปิดทางลัด LabelPro Local บน Desktop</td><td>ตรวจและเริ่มบริการให้พร้อม แล้วเปิดโปรแกรม ไม่มี terminal ค้าง</td></tr><tr><td>กด X ปิดหน้าต่าง Chrome</td><td>ปิดเฉพาะหน้าต่าง บริการและคิวพิมพ์ยังทำงาน</td></tr><tr><td>ตั้งค่า → ปิดระบบ หรือ stop-labelpro.vbs</td><td>รอส่งงานที่กำลังพิมพ์ให้จบ แล้วหยุดเว็บและตัวพิมพ์</td></tr></table>
-<p>หากใช้ทางลัดที่ติดตั้งจาก Chrome แล้วเข้าไม่ได้ ให้ใช้ทางลัด LabelPro Local เพื่อเริ่มบริการก่อน ลิงก์ localhost อย่างเดียวไม่เริ่มบริการที่ปิดอยู่</p>
+<table><tr><th>สิ่งที่ทำ</th><th>ผลที่เกิดขึ้น</th></tr><tr><td>เข้า Windows</td><td>บริการเริ่มเบื้องหลัง ไม่เปิดหน้าโปรแกรมเอง</td></tr><tr><td>เปิดทางลัด Label Pro Max Local บน Desktop</td><td>ตรวจและเริ่มบริการให้พร้อม แล้วเปิดโปรแกรม ไม่มี terminal ค้าง</td></tr><tr><td>กด X ปิดหน้าต่าง Chrome</td><td>ปิดเฉพาะหน้าต่าง บริการและคิวพิมพ์ยังทำงาน</td></tr><tr><td>ตั้งค่า → ปิดระบบ หรือ stop-label-pro-max-local.vbs</td><td>รอส่งงานที่กำลังพิมพ์ให้จบ แล้วหยุดเว็บและตัวพิมพ์</td></tr></table>
+<p>หากใช้ทางลัดที่ติดตั้งจาก Chrome แล้วเข้าไม่ได้ ให้ใช้ทางลัด Label Pro Max Local เพื่อเริ่มบริการก่อน ลิงก์ localhost อย่างเดียวไม่เริ่มบริการที่ปิดอยู่</p>
 <div class="footer"><span>หลังติดตั้งแล้ว ใช้ทางลัด Desktop เป็นหลัก</span><span>3 / 7</span></div></section>
 
 <section class="page"><div class="tag">เตรียมข้อมูลและทดลองพิมพ์</div><h2>3. เพิ่มลูกค้าและนำเข้า Excel</h2>
@@ -52,6 +52,7 @@ git clone --branch codex/windows-launcher-thai-print --single-branch https://git
 <h3>ทดลองครั้งแรก 1 ใบ</h3>
 <p>เลือกข้อความ จำนวน 1 ใบ และชื่อผู้สั่ง ตรวจตัวอย่างแล้วกดสั่งพิมพ์ ดูหน้าคิวและรอฉลากออกจริง ตรวจขนาด สระ วรรณยุกต์ ชื่อผู้รับ ที่อยู่ และการตัดฉลาก ก่อนพิมพ์หลายใบ</p>
 <div class="note">จำนวนเลือกได้ 1-20 ใบต่อคำสั่ง สถานะ “ส่งงานพิมพ์แล้ว” หมายถึงโปรแกรมส่งงานเสร็จ ต้องดูฉลากจริงเพื่อยืนยันว่ากระดาษออกถูกต้อง</div>
+<p><b>หน้าคิว:</b> ยอดรวมส่งพิมพ์สำเร็จนับจำนวนใบของทุกงานสำเร็จ เลือกงานล้มเหลวทีละรายการหรือเลือกทั้งหมด แล้วกดล้างและยืนยันได้ งานสำเร็จและยอดรวมยังอยู่</p>
 <div class="footer"><span>ชื่อย่อ A ใช้ค้นหา · ชื่อร้าน B ใช้พิมพ์</span><span>4 / 7</span></div></section>
 
 <section class="page"><div class="tag">ดูแลข้อมูลและย้ายเครื่อง</div><h2>4. สำรอง อัปเดต และล้างข้อมูล</h2>
@@ -61,7 +62,7 @@ git clone --branch codex/windows-launcher-thai-print --single-branch https://git
 <h3>เครื่องใหม่เริ่มว่าง หรือย้ายข้อมูลเดิม?</h3>
 <ul><li><b>สาขาใหม่:</b> ติดตั้งโค้ดแล้วนำเข้า Excel ของสาขานั้น ไม่ต้องคัดลอกฐานข้อมูลเก่ามา</li><li><b>ย้ายเครื่องเดิม:</b> ติดตั้งและเปิดเครื่องใหม่ครั้งแรกให้เสร็จ ปิดระบบทั้งสองเครื่อง แล้วให้ผู้ดูแลกู้ไฟล์ .db ที่สำรองจากเครื่องเก่าด้วย <code>scripts/restore.mjs</code> วิธีนี้แทนข้อมูลทั้งชุด ไม่ใช่รวมลูกค้าสองเครื่อง</li></ul>
 <p>สำหรับผู้ดูแลที่มี Node.js/npm ให้เปิด PowerShell ในโฟลเดอร์โปรเจคใหม่หลังปิดระบบ แล้วใช้:</p>
-<pre>npm run restore -- "D:\LabelPro-backup\ชื่อไฟล์สำรอง.db"</pre>
+<pre>npm run restore -- "D:\Label Pro Max Local-backup\ชื่อไฟล์สำรอง.db"</pre>
 <p>ถ้าใช้ Node แบบ portable ให้เรียก <code>node.exe</code> ใน <code>.runtime\node-v24...\</code> ตามชื่อโฟลเดอร์จริงกับ <code>scripts\restore.mjs</code> และพาธไฟล์สำรอง ตัวกู้คืนตรวจไฟล์และสำรองข้อมูลเครื่องใหม่ก่อนแทนที่ หลังเปิดใหม่เลือกเครื่องพิมพ์ของเครื่องใหม่อีกครั้ง ไม่คัดลอกเฉพาะ labelpro.db ระหว่างระบบเก่ากำลังทำงาน</p>
 <h3>อัปเดตและล้างลูกค้า</h3>
 <p><b>อัปเดต:</b> สำรองและจัดการคิวให้จบ เชื่อมอินเทอร์เน็ต ไป ตั้งค่า → อัปเดตแอปจาก GitHub รอผลและเปิดทางลัดอีกครั้งถ้าจำเป็น ใช้ได้กับโปรเจคที่ clone ด้วย Git และไม่มีไฟล์แก้ไขค้าง</p>
@@ -72,7 +73,7 @@ git clone --branch codex/windows-launcher-thai-print --single-branch https://git
 <h3>ผู้ดูแลทำก่อน</h3>
 <p>บันทึกและส่งโค้ดรุ่นใหม่ขึ้น GitHub ในสาขาที่เครื่องผู้ใช้งานติดตามอยู่ ปุ่มอัปเดตดึงจากสาขานั้น ไม่สลับไป main เอง เครื่องที่ติดตั้งตามคู่มือนี้ติดตาม <code>codex/windows-launcher-thai-print</code> หากย้ายการปล่อยรุ่นไป main ต้องให้ผู้ดูแลเปลี่ยนสาขาของเครื่องปลายทางก่อน</p>
 <h3>ผู้ใช้งานที่ติดตั้งด้วย Git ทำตามนี้</h3>
-<ol><li>เปิด LabelPro Local และเชื่อมต่ออินเทอร์เน็ต ต้องมี Git และสิทธิ์อ่าน repo หากเป็นโปรเจคส่วนตัวให้ผู้ดูแลเตรียมการเข้าสู่ระบบ GitHub ไว้ก่อน</li><li>ไป ตั้งค่า → สำรองข้อมูลตอนนี้ รอและตรวจสถานะสำรองล่าสุดว่าเรียบร้อย</li><li>ไปหน้าคิว รอให้งานรอพิมพ์และงานกำลังพิมพ์หมด รวมถึงรอการนำเข้าลูกค้าให้จบ</li><li>ไป ตั้งค่า → อัปเดตแอปจาก GitHub แล้วกดยืนยัน ระบบตรวจและดาวน์โหลดรุ่นใหม่ เตรียมเครื่องมือก่อนเริ่มระบบใหม่</li><li>รอให้ระบบกลับมาพร้อมใช้งาน หากหน้าจอยังค้างข้อความเริ่มใหม่ ให้รีเฟรชหรือเปิดทางลัด Desktop อีกครั้ง ไม่กดสั่งพิมพ์ระหว่างอัปเดต</li><li>ตรวจผู้ส่ง ชื่อเครื่องพิมพ์ ลูกค้า และดาว แล้วทดลองฉลากจริง 1 ใบก่อนใช้งานต่อ</li></ol>
+<ol><li>เปิด Label Pro Max Local และเชื่อมต่ออินเทอร์เน็ต ต้องมี Git และสิทธิ์อ่าน repo หากเป็นโปรเจคส่วนตัวให้ผู้ดูแลเตรียมการเข้าสู่ระบบ GitHub ไว้ก่อน</li><li>ไป ตั้งค่า → สำรองข้อมูลตอนนี้ รอและตรวจสถานะสำรองล่าสุดว่าเรียบร้อย</li><li>ไปหน้าคิว รอให้งานรอพิมพ์และงานกำลังพิมพ์หมด รวมถึงรอการนำเข้าลูกค้าให้จบ</li><li>ไป ตั้งค่า → อัปเดตแอปจาก GitHub แล้วกดยืนยัน ระบบตรวจและดาวน์โหลดรุ่นใหม่ เตรียมเครื่องมือก่อนเริ่มระบบใหม่</li><li>รอให้ระบบกลับมาพร้อมใช้งาน หากหน้าจอยังค้างข้อความเริ่มใหม่ ให้รีเฟรชหรือเปิดทางลัด Desktop อีกครั้ง ไม่กดสั่งพิมพ์ระหว่างอัปเดต</li><li>ตรวจผู้ส่ง ชื่อเครื่องพิมพ์ ลูกค้า และดาว แล้วทดลองฉลากจริง 1 ใบก่อนใช้งานต่อ</li></ol>
 <div class="note">ไม่ต้องถอนติดตั้งหรือนำเข้า Excel ซ้ำ การอัปเดตโค้ดใช้ฐานข้อมูลเดิม ข้อมูลลูกค้า ดาว และผู้ส่งยังอยู่ การสำรองก่อนอัปเดตช่วยกู้กลับได้หากมีปัญหา</div>
 <h3>เครื่องที่ลงจาก ZIP</h3>
 <p>ปุ่มอัปเดตจาก GitHub ใช้ไม่ได้ ให้ผู้ดูแลสำรองและปิดระบบก่อนอัปเดต สำหรับการใช้งานระยะยาวให้ clone โค้ดรุ่นใหม่ในโฟลเดอร์ใหม่ เปิดเตรียมระบบ ปิดระบบ แล้วกู้ไฟล์สำรองตามหน้า 5 ตรวจเครื่องพิมพ์และสร้างทางลัดที่ตำแหน่งใหม่ก่อนส่งคืนผู้ใช้</p>
@@ -82,9 +83,9 @@ git clone --branch codex/windows-launcher-thai-print --single-branch https://git
 <div class="footer"><span>อัปเดตเฉพาะเมื่อคิวว่างและสำรองเรียบร้อย</span><span>6 / 7</span></div></section>
 
 <section class="page"><div class="tag">แก้ปัญหาและตรวจรับเครื่องใหม่</div><h2>6. เมื่อใช้งานไม่ได้</h2>
-<table><tr><th>อาการ</th><th>ตรวจและแก้เบื้องต้น</th></tr><tr><td>localhost เปิดไม่ได้</td><td>ใช้ทางลัด LabelPro Local และรอระบบพร้อม ถ้าย้ายโฟลเดอร์ ให้เปิด start-labelpro.vbs ที่ตำแหน่งใหม่เพื่อสร้างทางลัดใหม่</td></tr><tr><td>ดับเบิลคลิก VBS ไม่ทำงาน</td><td>ตรวจว่าแตก ZIP แล้ว และ Windows Script Host ไม่ถูกปิดโดยนโยบายองค์กร ถ้าถูกปิดให้ผู้ดูแลใช้ตัวเปิด PowerShell ที่ระบุใน README ไม่ต้องเปิดคำสั่งค้าง</td></tr><tr><td>เตรียมระบบครั้งแรกไม่ผ่าน</td><td>ตรวจอินเทอร์เน็ตและสิทธิ์เขียนโฟลเดอร์ แล้วเปิดตัวเปิดใหม่ ดู data/launcher.log สำหรับข้อความผิดพลาด ไม่ลบ data/ เพื่อแก้ปัญหา</td></tr><tr><td>พอร์ต 3000 ถูกใช้</td><td>ตรวจว่ามี LabelPro อีกโฟลเดอร์หรือแอปอื่นทำงานอยู่ ให้ผู้ดูแลจัดการโปรแกรมนั้น ไม่เปิด LabelPro สองชุดบนพอร์ตเดียวกัน</td></tr><tr><td>งานล้มเหลว / กระดาษไม่ออก</td><td>ตรวจไฟ USB กระดาษ สถานะเครื่องพิมพ์ และชื่อในตั้งค่า ดูข้อความผิดพลาดหน้าคิว รวมทั้งคิวของ Windows ก่อนกดพิมพ์ซ้ำ เพื่อไม่ให้ได้ฉลากซ้ำ</td></tr><tr><td>ฉลากถูกตัด / ขนาดผิด</td><td>ตรวจขนาดกระดาษในไดรเวอร์เป็น 100 × 150 mm และการตรวจจับฉลาก ทดลอง 1 ใบอีกครั้ง ถ้าข้อความยาวเกินให้ย่อข้อมูลที่อยู่</td></tr><tr><td>นำเข้า Excel ไม่ผ่าน</td><td>ตรวจชื่อชีต PrintLabel และลำดับ A-D ไฟล์ไม่เกิน 10 MB ชื่อย่อ A ต้องไม่ว่าง</td></tr><tr><td>อัปเดตไม่ผ่าน</td><td>ตรวจอินเทอร์เน็ต Git และการติดตั้งด้วย clone ถ้าขึ้นว่ามีไฟล์แก้ไขค้าง ให้ผู้ดูแลจัดการก่อน ไม่ทับโค้ดและข้อมูลทั้งหมด</td></tr></table>
+<table><tr><th>อาการ</th><th>ตรวจและแก้เบื้องต้น</th></tr><tr><td>localhost เปิดไม่ได้</td><td>ใช้ทางลัด Label Pro Max Local และรอระบบพร้อม ถ้าย้ายโฟลเดอร์ ให้เปิด start-label-pro-max-local.vbs ที่ตำแหน่งใหม่เพื่อสร้างทางลัดใหม่</td></tr><tr><td>ดับเบิลคลิก VBS ไม่ทำงาน</td><td>ตรวจว่าแตก ZIP แล้ว และ Windows Script Host ไม่ถูกปิดโดยนโยบายองค์กร ถ้าถูกปิดให้ผู้ดูแลใช้ตัวเปิด PowerShell ที่ระบุใน README ไม่ต้องเปิดคำสั่งค้าง</td></tr><tr><td>เตรียมระบบครั้งแรกไม่ผ่าน</td><td>ตรวจอินเทอร์เน็ตและสิทธิ์เขียนโฟลเดอร์ แล้วเปิดตัวเปิดใหม่ ดู data/launcher.log สำหรับข้อความผิดพลาด ไม่ลบ data/ เพื่อแก้ปัญหา</td></tr><tr><td>พอร์ต 3000 ถูกใช้</td><td>ตรวจว่ามี Label Pro Max Local อีกโฟลเดอร์หรือแอปอื่นทำงานอยู่ ให้ผู้ดูแลจัดการโปรแกรมนั้น ไม่เปิด Label Pro Max Local สองชุดบนพอร์ตเดียวกัน</td></tr><tr><td>งานล้มเหลว / กระดาษไม่ออก</td><td>ตรวจไฟ USB กระดาษ สถานะเครื่องพิมพ์ และชื่อในตั้งค่า ดูข้อความผิดพลาดหน้าคิว รวมทั้งคิวของ Windows ก่อนกดพิมพ์ซ้ำ เพื่อไม่ให้ได้ฉลากซ้ำ</td></tr><tr><td>ฉลากถูกตัด / ขนาดผิด</td><td>ตรวจขนาดกระดาษในไดรเวอร์เป็น 100 × 150 mm และการตรวจจับฉลาก ทดลอง 1 ใบอีกครั้ง ถ้าข้อความยาวเกินให้ย่อข้อมูลที่อยู่</td></tr><tr><td>นำเข้า Excel ไม่ผ่าน</td><td>ตรวจชื่อชีต PrintLabel และลำดับ A-D ไฟล์ไม่เกิน 10 MB ชื่อย่อ A ต้องไม่ว่าง</td></tr><tr><td>อัปเดตไม่ผ่าน</td><td>ตรวจอินเทอร์เน็ต Git และการติดตั้งด้วย clone ถ้าขึ้นว่ามีไฟล์แก้ไขค้าง ให้ผู้ดูแลจัดการก่อน ไม่ทับโค้ดและข้อมูลทั้งหมด</td></tr></table>
 <h3>ตรวจรับก่อนส่งให้พนักงาน</h3>
 <p>□ เปิดจาก Desktop ได้โดยไม่มี terminal ค้าง<br>□ ผู้ส่ง สาขา และเครื่องพิมพ์ถูกต้อง<br>□ ลูกค้าและรายการปักหมุดแสดงถูกต้อง<br>□ ทดลองฉลากจริง 1 ใบผ่าน<br>□ สำรองข้อมูลและคัดลอกออกจากเครื่องแล้ว<br>□ หลังเข้า Windows ครั้งถัดไป เปิดทางลัดใช้งานได้</p>
 <p style="font-size:9pt">แหล่งดาวน์โหลด: <a href="https://support.google.com/chrome/answer/95346">Google Chrome Help</a> · <a href="https://git-scm.com/install/windows">Git for Windows</a><br>คู่มือตรวจจากโค้ดโปรเจค ไม่ใช่หลักฐานว่าทดสอบเครื่องพิมพ์จริงทุกเครื่อง แนะนำทดสอบฉลากบนเครื่องปลายทางก่อนใช้งานประจำวัน</p>
-<div class="footer"><span>LabelPro Local · คู่มือฉบับ 6 ตุลาคม 2569</span><span>7 / 7</span></div></section>
+<div class="footer"><span>Label Pro Max Local · คู่มือฉบับ 6 ตุลาคม 2569</span><span>7 / 7</span></div></section>
 </body></html>

@@ -10,7 +10,7 @@ let pendingBrowser;
 export async function getLabelBrowser() {
   if (!pendingBrowser) pendingBrowser = chromium.launch({ headless: true }).catch((error) => {
     pendingBrowser = null;
-    throw new Error('ตัวสร้างฉลากยังไม่พร้อม กรุณาเปิด start-labelpro.vbs เพื่อเตรียมระบบ: ' + error.message);
+    throw new Error('ตัวสร้างฉลากยังไม่พร้อม กรุณาเปิด start-label-pro-max-local.vbs เพื่อเตรียมระบบ: ' + error.message);
   });
   const browser = await pendingBrowser;
   if (!browser.isConnected()) { pendingBrowser = null; return getLabelBrowser(); }

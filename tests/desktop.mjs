@@ -6,7 +6,7 @@ import {execFileSync} from 'node:child_process';
 import {createServer} from 'node:net';
 import {once} from 'node:events';
 if(process.platform!=='win32')process.exit(0);
-const scratch=mkdtempSync(join(tmpdir(),'LabelPro ทางลัด '));
+const scratch=mkdtempSync(join(tmpdir(),'Label Pro Max Local ทางลัด '));
 const desktop=join(scratch,'Desktop'),startup=join(scratch,'Startup');
 const socket=createServer();socket.listen(0,'127.0.0.1');await once(socket,'listening');const port=socket.address().port;await new Promise(r=>socket.close(r));
 const base=`http://127.0.0.1:${port}`;
@@ -16,13 +16,13 @@ async function health(){try{return await(await fetch(base+'/api/health')).json()
 try {
   execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',resolve('scripts/install-desktop.ps1')],{env:{...process.env,LABELPRO_DESKTOP_DIR:desktop,LABELPRO_STARTUP_DIR:startup},windowsHide:true});
   const ps=`$s=New-Object -ComObject WScript.Shell; @($s.CreateShortcut($env:TEST_DESKTOP),$s.CreateShortcut($env:TEST_STARTUP)) | Select-Object TargetPath,Arguments,IconLocation,WorkingDirectory | ConvertTo-Json`;
-  const links=JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',ps],{env:{...process.env,TEST_DESKTOP:join(desktop,'LabelPro Local.lnk'),TEST_STARTUP:join(startup,'LabelPro Local.lnk')},encoding:'utf8',windowsHide:true}));
+  const links=JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',ps],{env:{...process.env,TEST_DESKTOP:join(desktop,'Label Pro Max Local.lnk'),TEST_STARTUP:join(startup,'Label Pro Max Local.lnk')},encoding:'utf8',windowsHide:true}));
   assert(links.every(x=>x.TargetPath.toLowerCase().endsWith('wscript.exe')));
   assert(links.every(x=>x.IconLocation.endsWith('labelpro-transparent.ico,0')));
   assert(links[1].Arguments.endsWith('/startup'));
   assert(links.every(x=>x.WorkingDirectory.toLowerCase()===resolve('.').toLowerCase()));
   console.log('Desktop and startup shortcuts verified in isolated folders; hidden launcher and current logo selected.');
-  execFileSync('wscript.exe',[resolve('start-labelpro.vbs'),'/startup'],{env,windowsHide:true});
+  execFileSync('wscript.exe',[resolve('start-label-pro-max-local.vbs'),'/startup'],{env,windowsHide:true});
   let ready=false;
   for(let i=0;i<1200;i++){if((await health())?.worker.ready){ready=true;break;}await wait(250);}
   assert(ready,'Startup VBS failed to start the isolated service');

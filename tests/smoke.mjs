@@ -26,7 +26,7 @@ async function until(fn,timeout=15000){const end=Date.now()+timeout;while(Date.n
 async function freePort(){const s=createServer();s.listen(0,'127.0.0.1');await once(s,'listening');const port=s.address().port;await new Promise(r=>s.close(r));return port;}
 function child(script,env){const c=fork(join(ROOT,script),[],{cwd:ROOT,env:{...process.env,...env},silent:true});children.push(c);c.logs='';c.stdout.on('data',x=>c.logs+=x);c.stderr.on('data',x=>c.logs+=x);return c;}
 async function api(base,path,method='GET',body){const r=await fetch(base+path,{method,...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});return {status:r.status,...await r.json()};}
-async function stopChild(c){if(!c||c.exitCode!==null)return;const done=once(c,'exit');c.send({type:'stop'});await Promise.race([done,wait(8000)]);if(c.exitCode===null){c.kill();await done;}}
+async function stopChild(c){if(!c||c.exitCode!==null||c.signalCode!==null)return;const done=once(c,'exit');if(c.connected)c.send({type:'stop'},()=>{});else c.kill();await Promise.race([done,wait(8000)]);if(c.exitCode===null&&c.signalCode===null){c.kill();await done;}}
 const sample={id:1,place_name:'โรงงานทดสอบ',attention_name:'บริษัท ทดสอบภาษาไทย (สำนักงานใหญ่)',address:'393/8 หมู่ 6 ซ.วัดใหญ่ ถ.สุขสวัสดิ์\nต.ในคลองบางปลากด อ.พระสมุทรเจดีย์\nจ.สมุทรปราการ 10290',contact:'คุณทดสอบ 080-000-0000 / ฝ่ายรับสินค้า',message:'มีเอกสารค่ะ',copies:2,sender_name:'ร้านผู้ส่งทดสอบ',sender_phone:'02-000-0000',sender_address:'441/27 หมู่ 9 ต.หนองปรือ\nอ.บางละมุง จ.ชลบุรี 20150',sender_address_extra:'ที่อยู่เพิ่มเติม น้ำ กุ้ง ปู่ ญู่'};
 try{
   for(const folder of ['server','scripts','web'])for(const name of readdirSync(join(ROOT,folder)).filter(x=>/\.(mjs|js)$/.test(x)))execFileSync(process.execPath,['--check',join(ROOT,folder,name)],{windowsHide:true});
@@ -51,9 +51,25 @@ try{
   check('งานเก็บ snapshot ผู้ส่งตอนสั่ง',()=>assert.equal(database.prepare('SELECT sender_name FROM print_jobs WHERE id=?').get(job.job_id).sender_name,'ผู้ส่งตอนสั่ง'));
   // Counts are computed from every job, even outside the newest 50.
   database.transaction(()=>{for(let i=0;i<75;i++)database.prepare("INSERT INTO print_jobs(status,printed_at) VALUES('done',?)").run(new Date().toISOString());})();
-  const queue=await api(base,'/api/queue');check('ยอดวันนี้นับครบแม้รายการมี 50 งาน',()=>{assert.equal(queue.jobs.length,50);assert.equal(queue.stats.done_today,76);});
+  const queue=await api(base,'/api/queue');check('ยอดวันนี้และจำนวนใบทั้งหมดนับครบแม้รายการมี 50 งาน',()=>{assert.equal(queue.jobs.length,50);assert.equal(queue.stats.done_today,76);assert.equal(queue.stats.done_copies_total,77);});
   browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1280,height:900}});
   const pageErrors=[];page.on('pageerror',e=>pageErrors.push(e.message));
+  const failedInsert=database.prepare("INSERT INTO print_jobs(status,copies) VALUES('failed',3)");
+  const failIds=[];for(let i=0;i<61;i++)failIds.push(Number(failedInsert.run().lastInsertRowid));
+  const wrongClear=await api(base,'/api/queue/clear-failed','POST',{ids:[failIds[0],job.job_id],confirmation:'ล้างงานล้มเหลว'});
+  check('ล้างคิวไม่แตะงานสำเร็จและไม่ลบบางส่วนเมื่อรายการผิด',()=>{assert.equal(wrongClear.status,409);assert.equal(database.prepare("SELECT COUNT(*) n FROM print_jobs WHERE status='failed'").get().n,61);});
+  await page.goto(base);await page.locator('[data-view="queue"]').click();await page.locator('#stFail').filter({hasText:'61'}).waitFor();
+  await page.locator('.failed-job-select').first().check();
+  page.once('dialog',dialog=>dialog.dismiss());await page.locator('#clearFailedJobs').click();
+  check('ยกเลิกคำเตือนล้างคิวแล้วข้อมูลอยู่ครบ',()=>assert.equal(database.prepare("SELECT COUNT(*) n FROM print_jobs WHERE status='failed'").get().n,61));
+  page.once('dialog',dialog=>dialog.accept());await page.locator('#clearFailedJobs').click();
+  await until(()=>database.prepare("SELECT COUNT(*) n FROM print_jobs WHERE status='failed'").get().n===60);
+  await page.locator('#selectAllFailed').check();
+  await page.locator('#failedSelectionCount').filter({hasText:'เลือก 60 งาน'}).waitFor();
+  page.once('dialog',dialog=>dialog.accept());await page.locator('#clearFailedJobs').click();
+  await until(()=>database.prepare("SELECT COUNT(*) n FROM print_jobs WHERE status='failed'").get().n===0);
+  const afterClear=await api(base,'/api/queue');
+  check('เลือกทั้งหมดล้างงานล้มเหลวเกิน 50 งานและรักษายอด 77 ใบ',()=>{assert.equal(afterClear.failed_ids.length,0);assert.equal(afterClear.stats.done_copies_total,77);assert.equal(database.prepare('SELECT COUNT(*) n FROM print_jobs').get().n,76);});
   await page.goto(base);await page.locator('#results .cust').first().waitFor();
   await page.locator('#results .cust').first().click();
   await page.frameLocator('#labelPreview').locator('.place').waitFor();
@@ -82,7 +98,7 @@ try{
   await page.locator('#clearConfirm').click();await until(()=>database.prepare('SELECT COUNT(*) n FROM customers').get().n===0);
   await page.locator('#custBody').filter({hasText:'ยังไม่มีลูกค้า'}).waitFor();
   check('ยืนยันจาก UI ล้างครบทุกแถวและรักษาประวัติ',()=>{assert.equal(database.prepare('SELECT COUNT(*) n FROM customers').get().n,0);assert.equal(database.prepare('SELECT COUNT(*) n FROM print_jobs').get().n,76);});
-  const backupFile=readdirSync(join(scratch,'backups')).find(x=>x.startsWith('labelpro-before-clear-'));
+  const backupFile=readdirSync(join(scratch,'backups')).find(x=>x.startsWith('label-pro-max-local-before-clear-'));
   const backupDb=new Database(join(scratch,'backups',backupFile),{readonly:true});
   check('สำรองก่อนล้างมีลูกค้าครบ 302 ราย',()=>assert.equal(backupDb.prepare('SELECT COUNT(*) n FROM customers').get().n,302));backupDb.close();
   await page.locator('[data-view="print"]').click();await page.frameLocator('#labelPreview').locator('.place').filter({hasText:'เลือกลูกค้า'}).waitFor();
@@ -147,7 +163,7 @@ try{
   const restored=new Database(restoredDb,{readonly:true});check('กู้ SQL gzip โดยไม่ต้อง sqlite3 CLI',()=>assert.equal(restored.prepare('SELECT COUNT(*) n FROM customers').get().n,3));restored.close();
   execFileSync(process.execPath,[join(ROOT,'scripts','restore.mjs'),join(scratch,'backups',backupFile)],{cwd:ROOT,env:{...process.env,LABELPRO_DB:restoredDb},windowsHide:true});
   const restoredBinary=new Database(restoredDb,{readonly:true});
-  check('กู้ DB ก่อนล้างคืนครบและสำรองของเดิมก่อนแทนที่',()=>{assert.equal(restoredBinary.prepare('SELECT COUNT(*) n FROM customers').get().n,302);assert(readdirSync(join(scratch,'backups')).some((x)=>x.startsWith('labelpro-before-restore-')));});restoredBinary.close();
+  check('กู้ DB ก่อนล้างคืนครบและสำรองของเดิมก่อนแทนที่',()=>{assert.equal(restoredBinary.prepare('SELECT COUNT(*) n FROM customers').get().n,302);assert(readdirSync(join(scratch,'backups')).some((x)=>x.startsWith('label-pro-max-local-before-restore-')));});restoredBinary.close();
   const dryBefore=database.prepare('SELECT COUNT(*) n FROM backup_log').get().n;
   execFileSync(process.execPath,[join(ROOT,'scripts','backup.mjs'),'--dry-run'],{cwd:ROOT,env:{...process.env},windowsHide:true});
   check('dry-run ไม่เขียนประวัติสำรอง',()=>assert.equal(database.prepare('SELECT COUNT(*) n FROM backup_log').get().n,dryBefore));

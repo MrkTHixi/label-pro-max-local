@@ -8,11 +8,11 @@
     "playwright": "^1.63.0",
     "xlsx": "^0.18.5"
   },
-  "description": "Local-first label printing system for Thai parcel labels (100x150mm). No cloud, no sync — each branch PC runs everything locally.",
+  "description": "Local-first label printing system for Thai parcel labels (100x150mm). No cloud, no sync โ€” each branch PC runs everything locally.",
   "engines": {
     "node": ">=22"
   },
-  "name": "labelpro-local",
+  "name": "label-pro-max-local",
   "allowScripts": {
     "better-sqlite3@12.11.1": true
   },
@@ -29,7 +29,7 @@
     "worker": "node server/print-worker.mjs"
   },
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "optionalDependencies": {
     "pdf-to-printer": "^5.8.1"
   }

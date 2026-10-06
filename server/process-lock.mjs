@@ -18,12 +18,12 @@ export function acquireLock(file) {
       if (error.code !== 'EEXIST') throw error;
       try {
         const lock = JSON.parse(readFileSync(file, 'utf8'));
-        if (isProcessAlive(lock.pid)) throw new Error('LabelPro กำลังทำงานอยู่แล้ว');
+        if (isProcessAlive(lock.pid)) throw new Error('Label Pro Max Local กำลังทำงานอยู่แล้ว');
         unlinkSync(file);
       } catch (readError) {
         if (readError instanceof SyntaxError) {
           if(Date.now()-statSync(file).mtimeMs > 30000){unlinkSync(file);continue;}
-          throw new Error('LabelPro กำลังเริ่มระบบ กรุณารอสักครู่');
+          throw new Error('Label Pro Max Local กำลังเริ่มระบบ กรุณารอสักครู่');
         }
         if (readError.code !== 'ENOENT') throw readError;
       }

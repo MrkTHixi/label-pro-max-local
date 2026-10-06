@@ -5,7 +5,7 @@ import Database from 'better-sqlite3';
 import { BACKUPS_DIR } from './paths.mjs';
 export async function createLocalBackup(database, directory = BACKUPS_DIR, reason = 'manual') {
   await mkdir(directory, { recursive: true });
-  const file = join(directory, `labelpro-${reason}-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}.db`);
+  const file = join(directory, `label-pro-max-local-${reason}-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}.db`);
   let check;
   try {
     await database.backup(file);

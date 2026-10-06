@@ -1,4 +1,4 @@
-// web/app.js — LabelPro Local frontend (vanilla JS, ไม่ต้อง build)
+// web/app.js — Label Pro Max Local frontend (vanilla JS, ไม่ต้อง build)
 // โฟลว์หลัก: ค้นหา (ชื่อสถานที่) → ดับเบิลคลิกเปิด popup ตัวเลือกการพิมพ์
 // → สั่งพิมพ์ → popup สำเร็จ (กลางจอ + คำอวยพรตามวันจริง)
 import { previewDocument } from './label-template.js';
@@ -7,7 +7,7 @@ async function request(path, method = 'GET', body) {
   try {
     const response = await fetch(path, { method, ...(body !== undefined ? {headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {}) });
     return await response.json();
-  } catch { return {ok:false,message:'ติดต่อระบบไม่ได้ กรุณาเปิด start-labelpro.vbs แล้วลองใหม่'}; }
+  } catch { return {ok:false,message:'ติดต่อระบบไม่ได้ กรุณาเปิด start-label-pro-max-local.vbs แล้วลองใหม่'}; }
 }
 const api = {
   get: (p) => request(p),
@@ -220,15 +220,46 @@ const STATUS = {
   failed: ['❌ ล้มเหลว', 'p-fail'],
   cancelled: ['🚫 ยกเลิกแล้ว', 'p-cancel'],
 };
+const selectedFailedJobs=new Set();
+let failedJobIds=[],clearFailedBusy=false;
+function updateFailedSelection(){
+  const count=selectedFailedJobs.size;
+  $('failedSelectionCount').textContent=`เลือก ${count} งาน จากงานล้มเหลว ${failedJobIds.length} งาน`;
+  $('clearFailedJobs').disabled=!count||clearFailedBusy;
+  $('selectAllFailed').disabled=!failedJobIds.length||clearFailedBusy;
+  $('selectAllFailed').checked=!!failedJobIds.length&&count===failedJobIds.length;
+  $('selectAllFailed').indeterminate=count>0&&count<failedJobIds.length;
+  document.querySelectorAll('.failed-job-select').forEach(input=>{input.checked=selectedFailedJobs.has(Number(input.dataset.id));input.disabled=clearFailedBusy;});
+}
+$('selectAllFailed').addEventListener('change',()=>{
+  selectedFailedJobs.clear();
+  if($('selectAllFailed').checked)failedJobIds.forEach(id=>selectedFailedJobs.add(id));
+  updateFailedSelection();
+});
+$('clearFailedJobs').addEventListener('click',async()=>{
+  if(clearFailedBusy||!selectedFailedJobs.size)return;
+  const ids=[...selectedFailedJobs];
+  if(!confirm(`ลบประวัติงานล้มเหลวที่เลือก ${ids.length} งานถาวร?\nงานสำเร็จ งานรอพิมพ์ และยอดรวมจำนวนใบจะยังอยู่`))return;
+  clearFailedBusy=true;updateFailedSelection();
+  const result=await api.post('/api/queue/clear-failed',{ids,confirmation:'ล้างงานล้มเหลว'});
+  clearFailedBusy=false;
+  if(result.ok){selectedFailedJobs.clear();toast(`ล้างงานล้มเหลว ${result.deleted} งานแล้ว`);}
+  else toast(result.message,true);
+  await loadQueue();loadQueueBadge();
+});
 async function loadQueue() {
   const d = await api.get('/api/queue');
   const tb = $('queueBody');
-  if (!d.ok) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted)">โหลดไม่สำเร็จ</td></tr>'; return; }
+  if (!d.ok) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted)">โหลดไม่สำเร็จ</td></tr>'; return; }
   $('stWait').textContent = d.stats.waiting;
   $('stDone').textContent = d.stats.done_today;
   $('stFail').textContent = d.stats.failed;
+  $('stTotalCopies').textContent = Number(d.stats.done_copies_total||0).toLocaleString('th-TH');
+  failedJobIds=d.failed_ids||[];
+  for(const id of selectedFailedJobs)if(!failedJobIds.includes(id))selectedFailedJobs.delete(id);
+  updateFailedSelection();
   if (!d.jobs.length) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted)">ยังไม่มีงานพิมพ์</td></tr>';
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted)">ยังไม่มีงานพิมพ์</td></tr>';
     return;
   }
   tb.innerHTML = d.jobs.map((j) => {
@@ -239,6 +270,7 @@ async function loadQueue() {
     if (j.status === 'queued') acts.push(`<button class="mini" data-act="cancel" data-id="${j.id}">ยกเลิก</button>`);
     if (j.status === 'done' || j.status === 'failed' || j.status === 'cancelled') acts.push(`<button class="mini" data-act="reprint" data-id="${j.id}">พิมพ์ซ้ำ</button>`);
     return `<tr>
+      <td>${j.status==='failed'?`<input type="checkbox" class="failed-job-select" data-id="${j.id}" aria-label="เลือกงานล้มเหลว ${j.id}" ${selectedFailedJobs.has(j.id)?'checked':''}>`:'—'}</td>
       <td style="white-space:nowrap">${esc(time)}</td>
       <td><b>📍 ${esc(j.place_name || '')}</b><br><span class="muted" style="font-size:12.5px">${esc(j.attention_name || '')}</span></td>
       <td>${esc(j.message || '—')}</td>
@@ -248,6 +280,8 @@ async function loadQueue() {
       <td style="white-space:nowrap">${acts.join('')}</td>
     </tr>`;
   }).join('');
+  tb.querySelectorAll('.failed-job-select').forEach(input=>input.addEventListener('change',()=>{const id=Number(input.dataset.id);if(input.checked)selectedFailedJobs.add(id);else selectedFailedJobs.delete(id);updateFailedSelection();}));
+  updateFailedSelection();
   tb.querySelectorAll('[data-act]').forEach((b) => {
     const id = Number(b.dataset.id);
     if (b.dataset.act === 'cancel') b.addEventListener('click', async () => {
@@ -435,7 +469,7 @@ $('updateNow').addEventListener('click', async () => {
 
 async function loadRuntimeStatus() {
   const d = await api.get('/api/health');
-  $('runtimeStatus').textContent = d.ok ? (d.worker.ready ? (d.worker.driver==='mock' ? '🧪 โหมดทดลอง ไม่มีการพิมพ์จริง' : '✅ ระบบพิมพ์พร้อม') : '⚠️ ตัวพิมพ์ยังไม่พร้อม กรุณาเปิด start-labelpro.vbs') : d.message;
+  $('runtimeStatus').textContent = d.ok ? (d.worker.ready ? (d.worker.driver==='mock' ? '🧪 โหมดทดลอง ไม่มีการพิมพ์จริง' : '✅ ระบบพิมพ์พร้อม') : '⚠️ ตัวพิมพ์ยังไม่พร้อม กรุณาเปิด start-label-pro-max-local.vbs') : d.message;
   $('restartRuntime').disabled = !d.managed; $('stopRuntime').disabled = !d.managed;
 }
 async function pollUpdate() {
@@ -448,8 +482,8 @@ $('restartRuntime').addEventListener('click', async () => {
   const d=await api.post('/api/runtime/restart'); toast(d.ok?'กำลังเริ่มระบบใหม่ กรุณารอสักครู่แล้วรีเฟรช':d.message,!d.ok);
 });
 $('stopRuntime').addEventListener('click', async () => {
-  if(!confirm('ปิดระบบ LabelPro? งานที่กำลังส่งพิมพ์จะทำให้เสร็จก่อนปิด')) return;
-  const d=await api.post('/api/runtime/stop'); toast(d.ok?'กำลังปิดระบบ เปิดอีกครั้งด้วย start-labelpro.vbs':d.message,!d.ok);
+  if(!confirm('ปิดระบบ Label Pro Max Local? งานที่กำลังส่งพิมพ์จะทำให้เสร็จก่อนปิด')) return;
+  const d=await api.post('/api/runtime/stop'); toast(d.ok?'กำลังปิดระบบ เปิดอีกครั้งด้วย start-label-pro-max-local.vbs':d.message,!d.ok);
 });
 
 let clearInfo = null, clearBusy = false, clearPreviousFocus;

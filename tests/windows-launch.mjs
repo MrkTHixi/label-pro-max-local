@@ -10,7 +10,7 @@ import { once } from 'node:events';
 import assert from 'node:assert/strict';
 if(process.platform!=='win32'){console.log('Windows launcher test skipped on this OS');process.exit(0);}
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-const scratch=mkdtempSync(join(tmpdir(),'LabelPro clone ภาษาไทย '));
+const scratch=mkdtempSync(join(tmpdir(),'Label Pro Max Local clone ภาษาไทย '));
 const execute=promisify(execFile);
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const s=createServer();s.listen(0,'127.0.0.1');await once(s,'listening');const port=s.address().port;await new Promise(r=>s.close(r));
@@ -27,10 +27,10 @@ try{
   const first=await ready();assert(first.managed);console.log('✓ cold setup without installed Node selection; server and worker ready');
   await launch();const second=await ready();assert.equal(second.pid,first.pid);console.log('✓ duplicate launch reuses the running server');
   const git=(args,cwd=scratch)=>execFileSync('git',args,{cwd,encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','pipe']}).trim();
-  git(['init','-b','main']);git(['config','user.name','LabelPro Test']);git(['config','user.email','test@labelpro.invalid']);
+  git(['init','-b','main']);git(['config','user.name','Label Pro Max Local Test']);git(['config','user.email','test@labelpro.invalid']);
   git(['add','.']);git(['commit','-m','test initial version']);
   const remote=join(scratch,'.runtime','test-origin.git');git(['init','--bare',remote]);git(['remote','add','origin',remote]);git(['push','-u','origin','main']);
-  const editor=join(scratch,'.runtime','test-editor');git(['clone',remote,editor]);git(['checkout','main'],editor);git(['config','user.name','LabelPro Test'],editor);git(['config','user.email','test@labelpro.invalid'],editor);
+  const editor=join(scratch,'.runtime','test-editor');git(['clone',remote,editor]);git(['checkout','main'],editor);git(['config','user.name','Label Pro Max Local Test'],editor);git(['config','user.email','test@labelpro.invalid'],editor);
   const {writeFileSync}=await import('node:fs');writeFileSync(join(editor,'test-update-marker.txt'),'verified update fixture');git(['add','.'],editor);git(['commit','-m','test newer version'],editor);git(['push','origin','main'],editor);
   const update=await(await fetch(base+'/api/update',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();assert(update.ok);
   let applied=false;for(let i=0;i<600;i++){const h=await health();if(h?.worker.ready&&h.pid!==first.pid&&existsSync(join(scratch,'test-update-marker.txt'))){applied=true;break;}await wait(200);}assert(applied,'prepared update did not finish');
