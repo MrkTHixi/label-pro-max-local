@@ -499,6 +499,7 @@ $('clearConfirm').addEventListener('click',async()=>{
 // ---------- branch chip ----------
 async function loadBranch() {
   const d = await api.get('/api/health');
+  $('appVersion').textContent = d.ok && d.version ? 'v'+d.version : '';
   $('branchChip').textContent = '📍 สาขา: ' + ((d.ok && d.branch) ? d.branch : '—');
 }
 

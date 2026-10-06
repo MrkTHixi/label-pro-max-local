@@ -10,14 +10,18 @@
 body{font-family:'Sarabun',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh}
 
 /* ── topbar: ปุ่มอยู่ด้านบนทั้งหมด ── */
-.topbar{background:linear-gradient(135deg,#3B2412,#5A3A20); color:#fff; padding:14px 28px; display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:40; box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.topbar{background:linear-gradient(135deg,#3B2412,#5A3A20); color:#fff; padding:0 28px; display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:40; box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .brand{display:flex; align-items:center; gap:12px; margin-right:auto}
-.brand .logo{width:44px; height:44px; border-radius:12px; overflow:hidden; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.08)}
-.brand .logo img{width:100%; height:100%; object-fit:cover; display:block}
+.brand .logo{width:130px; height:86px; flex-shrink:0; display:flex; align-items:center; justify-content:center}
+.brand .logo img{width:100%; height:100%; object-fit:contain; display:block}
 .brand h1{font-family:'Prompt',sans-serif; font-size:20px; font-weight:700}
 .brand small{color:#D4AA7D; font-size:12px}
 .branch-chip{background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); padding:6px 14px; border-radius:20px; font-size:13px; color:#F5E6D0}
-.top-actions{display:flex; gap:10px}
+.top-actions{display:flex;flex-wrap:wrap;gap:10px}
+.topbar{flex-wrap:wrap}
+.settings-button{flex-direction:column;justify-content:center;gap:2px;padding:7px 15px}
+.settings-button small{font-family:system-ui,sans-serif;font-size:10px;line-height:1.1;font-weight:500;opacity:.85;white-space:nowrap}
+#successOk{font-family:system-ui,sans-serif;font-size:13px;justify-content:center;white-space:normal;overflow-wrap:anywhere}
 .btn{border:0; border-radius:12px; padding:11px 20px; font-family:'Prompt',sans-serif; font-size:15px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:transform .08s; text-decoration:none}
 .btn:active{transform:scale(.97)}
 .btn-primary{background:var(--accent); color:#fff; box-shadow:0 3px 10px rgba(198,134,66,.4)}
@@ -170,11 +174,18 @@ td{padding:12px 16px; border-top:1px solid var(--line); vertical-align:top}
 .favorites .cust .starbtn{position:static;min-width:0;font-size:16px;padding:0;width:20px;height:24px;line-height:24px}
 .favorites .cust .pbtn{position:static;width:24px;height:24px;font-size:12px;border-radius:5px}
 .starbtn:focus-visible{outline:2px solid var(--amber)}
-@media(max-width:1100px){ .grid2s{grid-template-columns:1fr 1fr} }
+@media(max-width:1100px){ .grid2s{grid-template-columns:1fr 1fr} #systemCard{grid-column:2} }
 @media(max-width:900px){
   .grid2,.grid2s{grid-template-columns:1fr}
+  #systemCard{grid-column:auto}
   .preview-wrap{position:static}
   .results{grid-template-columns:1fr}
-  .topbar{flex-wrap:wrap}
+  .topbar{flex-wrap:wrap;padding:0 14px 10px;gap:8px}
+  .brand{gap:8px}
+  .brand .logo{width:110px;height:78px}
+  .brand h1{font-size:18px}
+  .brand small{font-size:11px}
+  .top-actions{flex-wrap:wrap;gap:6px}
+  .top-actions .btn{padding:9px 13px;font-size:13px}
   .wrap{padding:16px 14px 50px}
 }

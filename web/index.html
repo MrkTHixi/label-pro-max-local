@@ -22,7 +22,7 @@
     <button class="btn btn-primary" data-view="print">🖨️ พิมพ์ฉลาก</button>
     <button class="btn btn-ghost" data-view="queue">📋 คิวงาน <span class="badge hidden" id="queueBadge">0</span></button>
     <button class="btn btn-ghost" data-view="customers">👥 ลูกค้า</button>
-    <button class="btn btn-ghost" data-view="settings">⚙️</button>
+    <button class="btn btn-ghost settings-button" data-view="settings" aria-label="ตั้งค่าและเวอร์ชันโปรแกรม"><span>⚙️</span><small id="appVersion">…</small></button>
   </nav>
 </header>
 
@@ -119,7 +119,10 @@
         <button class="btn btn-outline" id="updateNow">⬇️ อัปเดตแอปจาก GitHub</button>
       </div>
       <div class="status-box muted" id="backupStatus">กำลังโหลดสถานะ…</div>
-      <hr class="hr">
+      <div class="status-box muted hidden" id="updateStatus"></div>
+    </div>
+    <div class="card" id="systemCard">
+      <h2>🖥️ ระบบและคู่มือ</h2>
       <div class="status-box muted" id="runtimeStatus">กำลังตรวจระบบพิมพ์…</div>
       <div class="btnrow"><a class="btn btn-outline" href="/manual.html" target="_blank" rel="noopener">คู่มือติดตั้งและใช้งาน</a><a class="btn btn-outline" href="/manual.pdf" download="LabelPro-User-Guide.pdf">ดาวน์โหลดคู่มือ PDF</a></div>
       <div class="btnrow"><button class="btn btn-outline" id="installDesktop">🖥️ สร้างทางลัดและเปิดพร้อม Windows</button><button class="btn btn-outline hidden" id="installApp">ติดตั้งแอปใน Chrome</button></div>
@@ -128,7 +131,6 @@
         <button class="btn btn-outline" id="restartRuntime">🔄 เริ่มระบบใหม่</button>
         <button class="btn btn-outline" id="stopRuntime">⏹️ ปิดระบบ</button>
       </div>
-      <div class="status-box muted hidden" id="updateStatus"></div>
     </div>
   </div>
 </section>
@@ -184,7 +186,7 @@
     <div class="s-day" id="s-day"></div>
     <div><span class="s-bless" id="s-bless"></span></div>
     <div class="s-count" id="s-count"></div>
-    <button class="btn btn-primary s-ok" id="successOk">ตกลง</button>
+    <button class="btn btn-primary s-ok" id="successOk" aria-label="Developed by Mangkorn.dev@gmail.com - ปิดหน้าต่าง">Developed by Mangkorn.dev@gmail.com</button>
   </div>
 </div>
 

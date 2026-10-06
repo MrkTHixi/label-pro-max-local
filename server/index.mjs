@@ -19,6 +19,7 @@ import {
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+const APP_VERSION = JSON.parse(readFileSync(join(ROOT,'package.json'),'utf8')).version;
 app.use(express.json({ limit: '1mb' }));
 let clearing = false, importing = false, updating = false;
 const clearTokens = new Map();
@@ -40,7 +41,7 @@ const err = (res, code, message) => res.status(code).json({ ok: false, message }
 // ---------- health ----------
 app.get('/api/health', (_req, res) => {
   const worker = db.prepare('SELECT * FROM worker_state WHERE id=1').get();
-  ok(res, { app_id: APP_ID, pid: process.pid, time: now(), branch: getSetting('branch_name'), managed: !!process.send,
+  ok(res, { app_id: APP_ID, version: APP_VERSION, pid: process.pid, time: now(), branch: getSetting('branch_name'), managed: !!process.send,
     worker: { ready: !!worker && Date.now() - Date.parse(worker.heartbeat) < 10000, driver: worker?.driver || null } });
 });
 
