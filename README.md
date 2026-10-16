@@ -118,6 +118,8 @@ start-label-pro-max-local.vbs → scripts/launch.ps1 → scripts/runtime.mjs
 Browser → Express → data/labelpro.db → queue → Chromium PDF → Windows spooler
 ```
 
+กันเปิดซ้อน: `scripts/runtime.mjs`, `server/index.mjs` และ `server/print-worker.mjs` ล็อกไฟล์ `data/labelpro.db.{runtime,server,worker}.lock` แบบทีละตัว (ไฟล์ละ 1 process) เมื่อเจอไฟล์ล็อกค้างจะตรวจว่า PID นั้นเป็น process ของระบบนี้จริงหรือไม่ (ชื่อไฟล์สคริปต์และโฟลเดอร์โปรเจค) ก่อนปฏิเสธการเริ่ม — ล็อกที่ PID ตายแล้วหรือเป็น process อื่นจะถูกย้ายเป็น `<ชื่อ>.stale-<เวลา>` แล้วเริ่มต่อได้ ส่วนล็อกที่ยืนยันตัวตนไม่ได้จะไม่ถูกลบและจะบอก PID กับพาธไฟล์ให้ตรวจสอบเอง หากเปิดแล้วเจอ "กำลังทำงานอยู่แล้ว" ทั้งที่ไม่มีระบบทำงาน ให้ปิดด้วย `stop-label-pro-max-local.vbs` แล้วเปิดใหม่
+
 รายละเอียดทุกไฟล์และข้อค้นพบเดิมอยู่ใน [docs/PROJECT-PLAN.md](docs/PROJECT-PLAN.md) กฎการพัฒนาอยู่ใน [AGENTS.md](AGENTS.md) และผลทดสอบล่าสุดอยู่ใน [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)
 
 ตารางหลัก: customers, sender_profile, print_jobs, settings, backup_log, worker_state ข้อมูลแยกแต่ละสาขา ไม่มีการซิงค์

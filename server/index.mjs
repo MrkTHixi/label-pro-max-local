@@ -10,7 +10,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { APP_ID } from './paths.mjs';
 import { createLocalBackup } from './local-backup.mjs';
 import { renderLabelPdf, closeLabelBrowser } from './label-pdf.mjs';
-import { acquireLock } from './process-lock.mjs';
+import { acquireLock, notifyParentAndExit, ALREADY_RUNNING_CODE, ALREADY_RUNNING_EXIT_CODE } from './process-lock.mjs';
 import { listWindowsPrinters } from './windows-printers.mjs';
 import { tmpdir } from 'node:os';
 import { rm } from 'node:fs/promises';
@@ -404,7 +404,26 @@ app.post('/api/runtime/restart', (_req,res) => {
 // ---------- static web UI (no build step — แก้ไฟล์แล้วรีเฟรชได้เลย) ----------
 app.use(express.static(join(ROOT, 'web')));
 
-const release = acquireLock(DB_PATH + '.server.lock');
+let release;
+try {
+  release = acquireLock(DB_PATH + '.server.lock', {
+    role: 'server',
+    expected: { root: ROOT, script: 'server/index.mjs' },
+    logger: (message) => console.log(message),
+  });
+} catch (error) {
+  console.error(error.message);
+  // Tell the runtime manager (when launched via scripts/runtime.mjs) that a
+  // live instance already owns the lock, so it reuses it instead of treating
+  // this as a crash. Exit code 2 = "already running", distinct from 1 = error.
+  notifyParentAndExit(
+    { type: 'already-running', message: error.message, detail: error.detail || null },
+    error.code === ALREADY_RUNNING_CODE ? ALREADY_RUNNING_EXIT_CODE : 1,
+  );
+  // notifyParentAndExit ends the process once the IPC message is flushed;
+  // park here so startup never continues in the meantime.
+  await new Promise(() => {});
+}
 process.on('exit', release);
 const server = app.listen(PORT, '127.0.0.1', () => {
   console.log(`[labelpro] http://localhost:${PORT}`);

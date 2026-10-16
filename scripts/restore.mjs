@@ -3,15 +3,22 @@ import Database from 'better-sqlite3';
 import { readFileSync, copyFileSync, existsSync, renameSync, rmSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { DB_PATH } from '../server/paths.mjs';
+import { DB_PATH, ROOT } from '../server/paths.mjs';
 import { createLocalBackup } from '../server/local-backup.mjs';
 import { isLockActive } from '../server/process-lock.mjs';
+// Identity-aware liveness: a lock only blocks the restore when it belongs to
+// a live instance of that role (never just because a PID happens to be alive).
+const ROLE_IDENTITY = {
+  runtime: { root: ROOT, script: 'scripts/runtime.mjs' },
+  worker: { root: ROOT, script: 'server/print-worker.mjs' },
+  server: { root: ROOT, script: 'server/index.mjs' },
+};
 const file = process.argv[2];
 const temp = `${DB_PATH}.restore-${process.pid}`;
 let restored, current;
 try {
   if (!file || !existsSync(file) || !/\.(db|sql\.gz)$/.test(file)) throw new Error('ใช้: npm run restore -- <ไฟล์.db หรือ .sql.gz>');
-  if (['runtime','worker','server'].some((role) => isLockActive(`${DB_PATH}.${role}.lock`))) throw new Error('กรุณาปิดระบบด้วย stop-label-pro-max-local.vbs ก่อนกู้คืน');
+  if (['runtime','worker','server'].some((role) => isLockActive(`${DB_PATH}.${role}.lock`, ROLE_IDENTITY[role]))) throw new Error('กรุณาปิดระบบด้วย stop-label-pro-max-local.vbs ก่อนกู้คืน');
   mkdirSync(dirname(DB_PATH), { recursive: true });
   if (file.endsWith('.db')) copyFileSync(file, temp);
   restored = new Database(temp);

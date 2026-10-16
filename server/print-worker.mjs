@@ -1,10 +1,27 @@
 import { join } from 'node:path';
-import { db, DATA_DIR, DB_PATH, now } from './db.mjs';
+import { db, ROOT, DATA_DIR, DB_PATH, now } from './db.mjs';
 import { makeDriver, resolveDriverName, cleanupStalePrintFiles } from './printer-drivers.mjs';
 import { closeLabelBrowser, getLabelBrowser } from './label-pdf.mjs';
-import { acquireLock } from './process-lock.mjs';
+import { acquireLock, notifyParentAndExit, ALREADY_RUNNING_CODE, ALREADY_RUNNING_EXIT_CODE } from './process-lock.mjs';
 import { appendLog } from './log.mjs';
-const release = acquireLock(DB_PATH + '.worker.lock');
+const lockLogger = (message) => { try { appendLog(join(DATA_DIR, 'worker.log'), `[${now()}] ${message}\n`); } catch { /* ignore */ } };
+let release;
+try {
+  release = acquireLock(DB_PATH + '.worker.lock', {
+    role: 'worker',
+    expected: { root: ROOT, script: 'server/print-worker.mjs' },
+    logger: lockLogger,
+  });
+} catch (error) {
+  lockLogger(`worker lock failed: ${error.message}`);
+  notifyParentAndExit(
+    { type: 'already-running', message: error.message, detail: error.detail || null },
+    error.code === ALREADY_RUNNING_CODE ? ALREADY_RUNNING_EXIT_CODE : 1,
+  );
+  // notifyParentAndExit ends the process once the IPC message is flushed;
+  // park here so the worker never starts in the meantime.
+  await new Promise(() => {});
+}
 process.on('exit', release);
 const log = (msg) => { const line = `[${now()}] ${msg}\n`; process.stdout.write(line); appendLog(join(DATA_DIR, 'worker.log'), line); };
 const driverName = resolveDriverName(), driver = makeDriver();
