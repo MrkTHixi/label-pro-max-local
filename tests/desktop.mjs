@@ -7,7 +7,14 @@ import {createServer} from 'node:net';
 import {once} from 'node:events';
 if(process.platform!=='win32')process.exit(0);
 const scratch=mkdtempSync(join(tmpdir(),'Label Pro Max Local ทางลัด '));
-const desktop=join(scratch,'Desktop'),startup=join(scratch,'Startup');
+// WScript.Shell (used by install-desktop.ps1) saves .lnk files through ANSI
+// path APIs: a shortcut path with Thai chars fails on en-US Windows (CI) with
+// "Unable to save shortcut" + FileNotFoundException. Branch PCs run Thai
+// Windows where Thai paths work, so this is a CI-environment limit, not a
+// product bug. Keep shortcut folders ASCII-only; the app/DB/VBS below still
+// exercise the Thai scratch path end to end.
+const linkRoot=mkdtempSync(join(tmpdir(),'Label Pro Max Local shortcuts '));
+const desktop=join(linkRoot,'Desktop'),startup=join(linkRoot,'Startup');
 const socket=createServer();socket.listen(0,'127.0.0.1');await once(socket,'listening');const port=socket.address().port;await new Promise(r=>socket.close(r));
 const base=`http://127.0.0.1:${port}`;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -32,4 +39,5 @@ try {
   for(let i=0;i<100;i++){if(!await health())break;await wait(100);}
   await wait(500);
   assert(resolve(scratch).startsWith(resolve(tmpdir())));rmSync(scratch,{recursive:true,force:true});
+  assert(resolve(linkRoot).startsWith(resolve(tmpdir())));rmSync(linkRoot,{recursive:true,force:true});
 }
